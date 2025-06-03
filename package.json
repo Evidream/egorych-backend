@@ -1,7 +1,7 @@
 {
   "name": "egorych-backend",
   "version": "1.0.0",
-  "description": "Voice endpoint for Egorych",
+  "description": "Text-to-speech backend for Egorych using ElevenLabs",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
