@@ -1,25 +1,23 @@
-// speak.js — Node.js endpoint для генерации озвучки через ElevenLabs
+// speak.js
+const express = require('express');
+const fetch = require('node-fetch');
+const cors = require('cors');
+const bodyParser = require('body-parser');
 
-import express from 'express';
-import fetch from 'node-fetch';
-import dotenv from 'dotenv';
-dotenv.config();
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
 
-const router = express.Router();
-
-router.post('/speak', async (req, res) => {
+app.post('/speak', async (req, res) => {
   try {
-    const { text } = req.body;
-    if (!text) return res.status(400).json({ error: 'No text provided' });
-
-    const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/YOUR_VOICE_ID/stream', {
+    const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/9I24fSa5sa0KXtXf6KWb/stream', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'xi-api-key': process.env.ELEVENLABS_API_KEY
+        'xi-api-key': process.env.ELEVEN_LABS_API_KEY
       },
       body: JSON.stringify({
-        text,
+        text: req.body.text,
         voice_settings: {
           stability: 0.5,
           similarity_boost: 0.75
@@ -27,13 +25,24 @@ router.post('/speak', async (req, res) => {
       })
     });
 
-    if (!response.ok) throw new Error('Failed to generate audio');
+    if (!response.ok) {
+      throw new Error(`ElevenLabs API error: ${response.status}`);
+    }
 
-    res.setHeader('Content-Type', 'audio/mpeg');
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Disposition': 'inline'
+    });
+
     response.body.pipe(res);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+
+  } catch (error) {
+    console.error('Error generating speech:', error);
+    res.status(500).send({ error: 'Something went wrong.' });
   }
 });
 
-export default router;
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Text-to-speech server is running on port ${port}`);
+});
