@@ -1,16 +1,18 @@
 {
   "name": "egorych-backend",
   "version": "1.0.0",
+  "description": "Backend for Egorych chatbot with OpenAI and ElevenLabs integration",
   "main": "index.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "axios": "^1.6.0",
-    "body-parser": "^1.20.0",
+    "axios": "^1.6.8",
+    "body-parser": "^1.20.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "openai": "^4.21.1"
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "openai": "^4.30.1"
   }
 }
