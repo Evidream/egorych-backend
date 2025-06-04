@@ -1,9 +1,10 @@
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const { Configuration, OpenAIApi } = require('openai');
-const axios = require('axios');
-require('dotenv').config();
+const express = require("express");
+const cors = require("cors");
+const bodyParser = require("body-parser");
+const { OpenAI } = require("openai");
+const axios = require("axios");
+
+require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -11,58 +12,55 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
-const configuration = new Configuration({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
 
-app.post('/chat', async (req, res) => {
+app.post("/chat", async (req, res) => {
+  const { text } = req.body;
+
   try {
-    const { message } = req.body;
-
-    const completion = await openai.createChatCompletion({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: 'Ты — добрый и ласковый собеседник, отвечающий как Егорыч.' },
-        { role: 'user', content: message },
-      ],
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: text }],
     });
 
-    const reply = completion.data.choices[0].message.content;
+    const reply = completion.choices[0].message.content;
     res.json({ reply });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ошибка при обработке запроса' });
+    console.error("Ошибка при обработке запроса:", error);
+    res.status(500).json({ error: "Произошла ошибка при обработке запроса" });
   }
 });
 
-app.post('/speak', async (req, res) => {
-  try {
-    const { reply } = req.body;
+app.post("/speak", async (req, res) => {
+  const { message } = req.body;
 
+  try {
     const response = await axios({
-      method: 'post',
-      url: 'https://api.elevenlabs.io/v1/text-to-speech/' + process.env.VOICE_ID,
+      method: "post",
+      url: `https://api.elevenlabs.io/v1/text-to-speech/${process.env.VOICE_ID}`,
       headers: {
-        'xi-api-key': process.env.ELEVEN_LABS_API_KEY,
-        'Content-Type': 'application/json',
+        "xi-api-key": process.env.ELEVEN_LABS_API_KEY,
+        "Content-Type": "application/json",
+        "accept": "audio/mpeg",
       },
-      responseType: 'arraybuffer',
       data: {
-        text: reply,
-        model_id: 'eleven_monolingual_v1',
+        text: message,
+        model_id: "eleven_monolingual_v1",
         voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.5,
+          stability: 0.3,
+          similarity_boost: 0.8,
         },
       },
+      responseType: "arraybuffer",
     });
 
-    res.setHeader('Content-Type', 'audio/mpeg');
+    res.set("Content-Type", "audio/mpeg");
     res.send(response.data);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Ошибка при озвучке текста' });
+  } catch (error) {
+    console.error("Ошибка при озвучке:", error);
+    res.status(500).json({ error: "Ошибка при генерации озвучки" });
   }
 });
 
