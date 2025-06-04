@@ -50,8 +50,7 @@ app.post("/speak", async (req, res) => {
         model_id: "eleven_multilingual_v2",
         voice_settings: {
           stability: 0.3,
-          similarity_boost: 1,
-          style_exaggeration: 0.2
+          similarity_boost: 0.8,
         },
       },
       responseType: "arraybuffer",
