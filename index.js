@@ -1,75 +1,68 @@
-// index.js — полный рабочий код для chat + speak
-
-import express from "express";
-import cors from "cors";
-import bodyParser from "body-parser";
-import dotenv from "dotenv";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import OpenAI from "openai";
-import { ElevenLabsClient } from "elevenlabs";
-
-dotenv.config();
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const { Configuration, OpenAIApi } = require('openai');
+const axios = require('axios');
+require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const elevenlabs = new ElevenLabsClient({ apiKey: process.env.ELEVEN_LABS_API_KEY });
-
-const VOICE_ID = process.env.VOICE_ID;
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, "public")));
 
-app.get("/", (req, res) => {
-  res.send("Egorych backend is running");
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
 });
+const openai = new OpenAIApi(configuration);
 
-// Endpoint для чата с GPT-4o
-app.post("/chat", async (req, res) => {
+app.post('/chat', async (req, res) => {
   try {
-    const message = req.body.message;
-    if (!message) return res.status(400).json({ error: "message is required" });
+    const { message } = req.body;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: message }],
+    const completion = await openai.createChatCompletion({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: 'Ты — добрый и ласковый собеседник, отвечающий как Егорыч.' },
+        { role: 'user', content: message },
+      ],
     });
 
-    const reply = response.choices[0].message.content;
+    const reply = completion.data.choices[0].message.content;
     res.json({ reply });
   } catch (error) {
-    console.error("CHAT ERROR:", error);
-    res.status(500).json({ error: "Произошла ошибка при обработке запроса" });
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при обработке запроса' });
   }
 });
 
-// Endpoint для озвучки через ElevenLabs
-app.post("/speak", async (req, res) => {
+app.post('/speak', async (req, res) => {
   try {
-    const text = req.body.text;
-    if (!text) return res.status(400).json({ error: "text is required" });
+    const { reply } = req.body;
 
-    const audio = await elevenlabs.textToSpeech(VOICE_ID, text, {
-      model_id: "eleven_monolingual_v1",
-      voice_settings: { stability: 0.3, similarity_boost: 0.7 },
+    const response = await axios({
+      method: 'post',
+      url: 'https://api.elevenlabs.io/v1/text-to-speech/' + process.env.VOICE_ID,
+      headers: {
+        'xi-api-key': process.env.ELEVEN_LABS_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      responseType: 'arraybuffer',
+      data: {
+        text: reply,
+        model_id: 'eleven_monolingual_v1',
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.5,
+        },
+      },
     });
 
-    const fileName = `egorych-${Date.now()}.mp3`;
-    const filePath = path.join(__dirname, "public", fileName);
-
-    fs.writeFileSync(filePath, audio);
-
-    const audioUrl = `${req.protocol}://${req.get("host")}/${fileName}`;
-    res.json({ url: audioUrl });
-  } catch (error) {
-    console.error("SPEAK ERROR:", error);
-    res.status(500).json({ error: "Произошла ошибка при озвучке" });
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.send(response.data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Ошибка при озвучке текста' });
   }
 });
 
