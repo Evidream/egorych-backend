@@ -39,7 +39,7 @@ app.post("/speak", async (req, res) => {
   try {
     const response = await axios({
       method: "post",
-      url: `https://api.elevenlabs.io/v1/text-to-speech/${process.env.VOICE_ID}`,
+      url: `https://api.elevenlabs.io/v1/text-to-speech/9I24fSa5sa0KXtXf6KWb`,
       headers: {
         "xi-api-key": process.env.ELEVEN_LABS_API_KEY,
         "Content-Type": "application/json",
