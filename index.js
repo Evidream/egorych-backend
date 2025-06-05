@@ -2,8 +2,11 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const multer = require("multer");
+const fs = require("fs");
+const path = require("path");
 const { OpenAI } = require("openai");
 const axios = require("axios");
+
 require("dotenv").config();
 
 const app = express();
@@ -17,7 +20,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ✅ Обработка текстового сообщения (ChatGPT)
+// ✅ Чат (GPT)
 app.post("/chat", async (req, res) => {
   const { text } = req.body;
 
@@ -35,18 +38,18 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// ✅ Озвучка ответа (ElevenLabs)
+// ✅ Озвучка (ElevenLabs)
 app.post("/speak", async (req, res) => {
   const { message } = req.body;
 
   try {
     const response = await axios({
       method: "post",
-      url: "https://api.elevenlabs.io/v1/text-to-speech/9I24fSa5sa0KXtXf6KWb",
+      url: "https://api.elevenlabs.io/v1/text-to-speech/9I24fSa5sa0KXtXf6KWb", // voice_id
       headers: {
         "xi-api-key": process.env.ELEVEN_LABS_API_KEY,
         "Content-Type": "application/json",
-        "accept": "audio/mpeg",
+        accept: "audio/mpeg",
       },
       data: {
         text: message,
@@ -67,24 +70,23 @@ app.post("/speak", async (req, res) => {
   }
 });
 
-// ✅ Расшифровка аудио (Whisper API)
+// ✅ Распознавание речи (Whisper)
 app.post("/whisper", upload.single("audio"), async (req, res) => {
   try {
-    const audioBuffer = req.file.buffer;
+    const buffer = req.file.buffer;
+    const filePath = path.join(__dirname, "temp_audio.mp3");
 
-    const file = {
-      name: "voice.mp3",
-      buffer: audioBuffer,
-      type: "audio/mpeg",
-    };
+    // сохраняем временный mp3
+    fs.writeFileSync(filePath, buffer);
 
     const transcription = await openai.audio.transcriptions.create({
-      file,
+      file: fs.createReadStream(filePath),
       model: "whisper-1",
       language: "ru",
       response_format: "json",
     });
 
+    fs.unlinkSync(filePath); // удаляем временный файл
     res.json({ text: transcription.text });
   } catch (error) {
     console.error("Ошибка в /whisper:", error.message);
