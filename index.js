@@ -3,11 +3,13 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const { OpenAI } = require("openai");
 const axios = require("axios");
+const multer = require("multer"); // ← ДОБАВЛЕНО
 
 require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT || 3000;
+const upload = multer(); // ← ДОБАВЛЕНО
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -16,6 +18,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// ✅ ЧАТ
 app.post("/chat", async (req, res) => {
   const { text } = req.body;
 
@@ -33,6 +36,7 @@ app.post("/chat", async (req, res) => {
   }
 });
 
+// ✅ ОЗВУЧКА
 app.post("/speak", async (req, res) => {
   const { message } = req.body;
 
@@ -61,6 +65,29 @@ app.post("/speak", async (req, res) => {
   } catch (error) {
     console.error("Ошибка при озвучке:", error);
     res.status(500).json({ error: "Ошибка при генерации озвучки" });
+  }
+});
+
+// ✅ РАСПОЗНАВАНИЕ РЕЧИ (Whisper)
+app.post("/whisper", upload.single("audio"), async (req, res) => {
+  try {
+    const transcription = await openai.audio.transcriptions.create({
+      file: {
+        value: req.file.buffer,
+        options: {
+          filename: "audio.mp3",
+          contentType: "audio/mpeg",
+        },
+      },
+      model: "whisper-1",
+      response_format: "json",
+      language: "ru",
+    });
+
+    res.json({ text: transcription.text });
+  } catch (err) {
+    console.error("Ошибка /whisper:", err.message);
+    res.status(500).json({ error: "Ошибка при расшифровке речи" });
   }
 });
 
