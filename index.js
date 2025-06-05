@@ -1,9 +1,9 @@
 const express = require("express");
 const cors = require("cors");
-const bodyParser = require("body-parser");
 const multer = require("multer");
-const { OpenAI } = require("openai");
+const bodyParser = require("body-parser");
 const axios = require("axios");
+const { OpenAI } = require("openai");
 const FormData = require("form-data");
 require("dotenv").config();
 
@@ -18,10 +18,8 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Ответ от GPT
 app.post("/chat", async (req, res) => {
   const { text } = req.body;
-
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -32,14 +30,12 @@ app.post("/chat", async (req, res) => {
     res.json({ reply });
   } catch (error) {
     console.error("Ошибка в /chat:", error.message);
-    res.status(500).json({ error: "Ошибка при обработке запроса" });
+    res.status(500).json({ error: "Ошибка в чате" });
   }
 });
 
-// Озвучка через ElevenLabs
 app.post("/speak", async (req, res) => {
   const { message } = req.body;
-
   try {
     const response = await axios({
       method: "post",
@@ -47,7 +43,7 @@ app.post("/speak", async (req, res) => {
       headers: {
         "xi-api-key": process.env.ELEVEN_LABS_API_KEY,
         "Content-Type": "application/json",
-        accept: "audio/mpeg",
+        "accept": "audio/mpeg",
       },
       data: {
         text: message,
@@ -64,23 +60,20 @@ app.post("/speak", async (req, res) => {
     res.send(response.data);
   } catch (error) {
     console.error("Ошибка в /speak:", error.message);
-    res.status(500).json({ error: "Ошибка при генерации озвучки" });
+    res.status(500).json({ error: "Ошибка при озвучке" });
   }
 });
 
-// Расшифровка речи через Whisper
 app.post("/whisper", upload.single("audio"), async (req, res) => {
   try {
-    const audioBuffer = req.file.buffer;
-
+    const file = req.file;
     const formData = new FormData();
-    formData.append("file", audioBuffer, {
+    formData.append("file", file.buffer, {
       filename: "audio.webm",
       contentType: "audio/webm",
     });
     formData.append("model", "whisper-1");
     formData.append("language", "ru");
-    formData.append("response_format", "json");
 
     const response = await axios.post(
       "https://api.openai.com/v1/audio/transcriptions",
@@ -96,7 +89,7 @@ app.post("/whisper", upload.single("audio"), async (req, res) => {
     res.json({ text: response.data.text });
   } catch (error) {
     console.error("Ошибка в /whisper:", error.response?.data || error.message);
-    res.status(500).json({ error: "Ошибка при расшифровке голоса" });
+    res.status(500).json({ error: "Ошибка при расшифровке речи" });
   }
 });
 
