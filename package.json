@@ -1,7 +1,7 @@
 {
   "name": "egorych-backend",
   "version": "1.2.0",
-  "description": "Backend for Egorych chatbot with OpenAI and ElevenLabs integration",
+  "description": "Backend for Egorych chatbot with MP3 Whisper and ElevenLabs integration",
   "main": "index.js",
   "type": "commonjs",
   "scripts": {
@@ -14,7 +14,6 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "multer": "^1.4.5-lts.1",
-    "form-data": "^4.0.0",
     "openai": "^4.30.1"
   }
 }
