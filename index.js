@@ -94,3 +94,4 @@ app.post("/whisper", upload.single("audio"), async (req, res) => {
 app.listen(port, () => {
   console.log(`Egorych backend is running on port ${port}`);
 });
+
