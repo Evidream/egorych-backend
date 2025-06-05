@@ -2,11 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const multer = require("multer");
-const fs = require("fs");
-const path = require("path");
 const { OpenAI } = require("openai");
 const axios = require("axios");
-
 require("dotenv").config();
 
 const app = express();
@@ -20,7 +17,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// ✅ Чат (GPT)
+// 🔹 Обработка текста
 app.post("/chat", async (req, res) => {
   const { text } = req.body;
 
@@ -34,22 +31,22 @@ app.post("/chat", async (req, res) => {
     res.json({ reply });
   } catch (error) {
     console.error("Ошибка в /chat:", error.message);
-    res.status(500).json({ error: "Произошла ошибка при обработке запроса" });
+    res.status(500).json({ error: "Ошибка в ChatGPT" });
   }
 });
 
-// ✅ Озвучка (ElevenLabs)
+// 🔹 Озвучка
 app.post("/speak", async (req, res) => {
   const { message } = req.body;
 
   try {
     const response = await axios({
       method: "post",
-      url: "https://api.elevenlabs.io/v1/text-to-speech/9I24fSa5sa0KXtXf6KWb", // voice_id
+      url: "https://api.elevenlabs.io/v1/text-to-speech/9I24fSa5sa0KXtXf6KWb",
       headers: {
         "xi-api-key": process.env.ELEVEN_LABS_API_KEY,
         "Content-Type": "application/json",
-        accept: "audio/mpeg",
+        "accept": "audio/mpeg",
       },
       data: {
         text: message,
@@ -66,27 +63,22 @@ app.post("/speak", async (req, res) => {
     res.send(response.data);
   } catch (error) {
     console.error("Ошибка в /speak:", error.message);
-    res.status(500).json({ error: "Ошибка при генерации озвучки" });
+    res.status(500).json({ error: "Ошибка озвучки" });
   }
 });
 
-// ✅ Распознавание речи (Whisper)
+// 🔹 Распознавание речи
 app.post("/whisper", upload.single("audio"), async (req, res) => {
   try {
-    const buffer = req.file.buffer;
-    const filePath = path.join(__dirname, "temp_audio.mp3");
-
-    // сохраняем временный mp3
-    fs.writeFileSync(filePath, buffer);
+    if (!req.file) throw new Error("Файл не получен");
 
     const transcription = await openai.audio.transcriptions.create({
-      file: fs.createReadStream(filePath),
+      file: req.file.buffer,
       model: "whisper-1",
       language: "ru",
       response_format: "json",
     });
 
-    fs.unlinkSync(filePath); // удаляем временный файл
     res.json({ text: transcription.text });
   } catch (error) {
     console.error("Ошибка в /whisper:", error.message);
@@ -94,7 +86,6 @@ app.post("/whisper", upload.single("audio"), async (req, res) => {
   }
 });
 
-// ✅ Запуск сервера
 app.listen(port, () => {
   console.log(`✅ Egorych backend is running on port ${port}`);
 });
