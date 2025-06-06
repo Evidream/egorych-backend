@@ -65,4 +65,5 @@ app.post("/speak", async (req, res) => {
 });
 
 app.listen(port, () => {
-  cons
+  console.log(`Egorych backend is running on port ${port}`);
+});
