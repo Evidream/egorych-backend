@@ -3,19 +3,42 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const { OpenAI } = require("openai");
 const axios = require("axios");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 
 require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
+// Создание папки для загрузок, если её нет
+const uploadDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+// Настройка multer
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
+});
+const upload = multer({ storage });
+
+// Инициализация OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Chat endpoint
 app.post("/chat", async (req, res) => {
   const { text } = req.body;
 
@@ -33,6 +56,7 @@ app.post("/chat", async (req, res) => {
   }
 });
 
+// Озвучка текста
 app.post("/speak", async (req, res) => {
   const { message } = req.body;
 
@@ -61,6 +85,22 @@ app.post("/speak", async (req, res) => {
   } catch (error) {
     console.error("Ошибка при озвучке:", error);
     res.status(500).json({ error: "Ошибка при генерации озвучки" });
+  }
+});
+
+// Загрузка файла
+app.post("/upload", upload.single("file"), (req, res) => {
+  try {
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: "Файл не был загружен" });
+    }
+
+    res.json({ message: "Файл успешно загружен", filename: file.filename });
+  } catch (error) {
+    console.error("Ошибка при загрузке файла:", error);
+    res.status(500).json({ error: "Ошибка при загрузке файла" });
   }
 });
 
