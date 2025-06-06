@@ -10,11 +10,10 @@ const fs = require("fs");
 require("dotenv").config();
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8080;
 
-// Middleware
 app.use(cors());
-app.use(bodyParser.json({ limit: "10mb" })); // увеличил лимит на всякий случай
+app.use(bodyParser.json({ limit: "10mb" }));
 
 // Создание папки для загрузок, если её нет
 const uploadDir = path.join(__dirname, "uploads");
@@ -33,21 +32,19 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Инициализация OpenAI
+// OpenAI init
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Chat endpoint
+// Чат
 app.post("/chat", async (req, res) => {
   const { text } = req.body;
-
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content: text }],
     });
-
     const reply = completion.choices[0].message.content;
     res.json({ reply });
   } catch (error) {
@@ -56,10 +53,9 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// Озвучка текста
+// Озвучка
 app.post("/speak", async (req, res) => {
   const { message } = req.body;
-
   try {
     const response = await axios({
       method: "post",
@@ -92,19 +88,21 @@ app.post("/speak", async (req, res) => {
 app.post("/upload", upload.single("file"), (req, res) => {
   try {
     const file = req.file;
+    console.log("📥 Получен файл:", file);
 
     if (!file) {
+      console.error("❌ Файл не был передан");
       return res.status(400).json({ error: "Файл не был загружен" });
     }
 
     res.json({ message: "Файл успешно загружен", filename: file.filename });
   } catch (error) {
-    console.error("Ошибка при загрузке файла:", error);
+    console.error("❌ Ошибка при загрузке файла:", error);
     res.status(500).json({ error: "Ошибка при загрузке файла" });
   }
 });
 
-// Реакция на изображение через GPT-4-Vision
+// Vision-анализ изображения
 app.post("/vision", async (req, res) => {
   const { base64 } = req.body;
 
@@ -138,7 +136,7 @@ app.post("/vision", async (req, res) => {
     const reply = completion.choices[0].message.content;
     res.json({ reply });
   } catch (error) {
-    console.error("Ошибка Vision:", error);
+    console.error("❌ Ошибка Vision:", error);
     res.status(500).json({ error: "Ошибка обработки изображения GPT-4-Vision" });
   }
 });
