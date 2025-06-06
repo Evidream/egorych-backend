@@ -14,7 +14,7 @@ const port = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: "10mb" })); // увеличил лимит на всякий случай
 
 // Создание папки для загрузок, если её нет
 const uploadDir = path.join(__dirname, "uploads");
@@ -101,6 +101,45 @@ app.post("/upload", upload.single("file"), (req, res) => {
   } catch (error) {
     console.error("Ошибка при загрузке файла:", error);
     res.status(500).json({ error: "Ошибка при загрузке файла" });
+  }
+});
+
+// Реакция на изображение через GPT-4-Vision
+app.post("/vision", async (req, res) => {
+  const { base64 } = req.body;
+
+  if (!base64) {
+    return res.status(400).json({ error: "Изображение не передано" });
+  }
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4-vision-preview",
+      messages: [
+        {
+          role: "system",
+          content: "Ты — тёплый, внимательный ассистент по имени Егорыч. Реагируй по-доброму на изображение, как человек, который сопереживает и замечает детали.",
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/jpeg;base64,${base64}`,
+              },
+            },
+          ],
+        },
+      ],
+      max_tokens: 300,
+    });
+
+    const reply = completion.choices[0].message.content;
+    res.json({ reply });
+  } catch (error) {
+    console.error("Ошибка Vision:", error);
+    res.status(500).json({ error: "Ошибка обработки изображения GPT-4-Vision" });
   }
 });
 
