@@ -32,12 +32,12 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// OpenAI init
+// Инициализация OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Чат
+// Чат-ответ
 app.post("/chat", async (req, res) => {
   const { text } = req.body;
   try {
@@ -48,7 +48,7 @@ app.post("/chat", async (req, res) => {
     const reply = completion.choices[0].message.content;
     res.json({ reply });
   } catch (error) {
-    console.error("Ошибка при обработке запроса:", error);
+    console.error("❌ Ошибка при обработке запроса:", error);
     res.status(500).json({ error: "Произошла ошибка при обработке запроса" });
   }
 });
@@ -79,7 +79,7 @@ app.post("/speak", async (req, res) => {
     res.set("Content-Type", "audio/mpeg");
     res.send(response.data);
   } catch (error) {
-    console.error("Ошибка при озвучке:", error);
+    console.error("❌ Ошибка при озвучке:", error);
     res.status(500).json({ error: "Ошибка при генерации озвучки" });
   }
 });
@@ -102,7 +102,7 @@ app.post("/upload", upload.single("file"), (req, res) => {
   }
 });
 
-// Vision-анализ изображения
+// Vision — реакция на изображение
 app.post("/vision", async (req, res) => {
   const { base64 } = req.body;
 
@@ -116,7 +116,13 @@ app.post("/vision", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: "Ты — тёплый, внимательный ассистент по имени Егорыч. Реагируй по-доброму на изображение, как человек, который сопереживает и замечает детали.",
+          content: `
+Ты — тёплый и внимательный ассистент по имени Егорыч. Пользователь прислал тебе изображение. 
+Рассмотри его внимательно и опиши, что ты видишь. Не пиши формально — будь человечным, простым и живым.
+Если на изображении есть люди — расскажи, что они делают, какое у них настроение.
+Если это объект или пейзаж — опиши его. Если не уверен — всё равно скажи, что примерно видишь. 
+Твоя задача — откликнуться с теплом, будто это друг прислал тебе фото, и ты хочешь поддержать разговор.
+        `.trim(),
         },
         {
           role: "user",
@@ -127,6 +133,10 @@ app.post("/vision", async (req, res) => {
                 url: `data:image/jpeg;base64,${base64}`,
               },
             },
+            {
+              type: "text",
+              text: "Что ты видишь на этом изображении? Просто расскажи по-человечески.",
+            }
           ],
         },
       ],
