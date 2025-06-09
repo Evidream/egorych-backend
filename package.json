@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "Backend for Egorych AI Assistant",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "start": "node index.js"
   },
+  "type": "commonjs",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.5",
     "axios": "^1.6.7",
