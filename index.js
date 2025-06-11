@@ -7,7 +7,6 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
-
 require("dotenv").config();
 
 const app = express();
@@ -22,13 +21,13 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
-// Создание папки для загрузок
+// Папка для загрузок
 const uploadDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir);
 }
 
-// Настройка multer
+// Multer
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, uploadDir);
@@ -40,9 +39,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Лимиты
 const LIMITS = {
@@ -52,22 +49,17 @@ const LIMITS = {
   premium: 500,
 };
 
-// Чат с лимитами
+// Чат
 app.post("/chat", async (req, res) => {
   const { text, email } = req.body;
-  let user;
+  if (!email) return res.status(400).json({ error: "Email обязателен" });
 
   try {
-    if (!email) {
-      return res.status(400).json({ error: "Email обязателен" });
+    let { data: user, error } = await supabase.from("users").select("*").eq("email", email).single();
+    if (error || !user) {
+      const { data: newUser } = await supabase.from("users").insert({ email, message_count: 0 }).select().single();
+      user = newUser;
     }
-
-    const { data, error } = await supabase.from("users").select("*").eq("email", email).single();
-    if (error || !data) {
-      return res.status(403).json({ error: "Пользователь не найден" });
-    }
-
-    user = data;
 
     let limit = LIMITS.registered;
     if (user.is_premium) limit = LIMITS.premium;
@@ -86,19 +78,68 @@ app.post("/chat", async (req, res) => {
 
     const reply = completion.choices[0].message.content;
     res.json({ reply });
-  } catch (error) {
-    console.error("❌ Ошибка в /chat:", error);
+  } catch (e) {
+    console.error("Ошибка в /chat:", e);
     res.status(500).json({ error: "Ошибка чата" });
   }
 });
 
-// Webhook от Тинькофф
+// Озвучка
+app.post("/speak", async (req, res) => {
+  const { text } = req.body;
+  try {
+    const result = await axios.post(
+      "https://api.elevenlabs.io/v1/text-to-speech/" + process.env.ELEVENLABS_VOICE_ID,
+      { text, model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.3, similarity_boost: 0.7 } },
+      { responseType: "arraybuffer", headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY, "Content-Type": "application/json" } }
+    );
+    res.set({ "Content-Type": "audio/mpeg" });
+    res.send(result.data);
+  } catch (e) {
+    console.error("Ошибка озвучки:", e);
+    res.status(500).json({ error: "Ошибка озвучки" });
+  }
+});
+
+// Vision
+app.post("/vision", async (req, res) => {
+  const { base64, prompt } = req.body;
+  try {
+    const result = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "Ты — заботливый помощник, который понимает изображения." },
+        {
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: base64 } },
+            { type: "text", text: prompt || "Что на фото?" },
+          ],
+        },
+      ],
+    });
+    res.json({ reply: result.choices[0].message.content });
+  } catch (e) {
+    console.error("Ошибка в /vision:", e);
+    res.status(500).json({ error: "Ошибка vision" });
+  }
+});
+
+// Upload
+app.post("/upload", upload.single("file"), async (req, res) => {
+  const filePath = req.file.path;
+  const fileData = fs.readFileSync(filePath);
+  const base64 = `data:${req.file.mimetype};base64,` + fileData.toString("base64");
+  fs.unlinkSync(filePath);
+  res.json({ base64 });
+});
+
+// Webhook
 app.post("/webhook", async (req, res) => {
   const { Status, OrderId, Amount } = req.body;
   if (Status === "CONFIRMED") {
     let update = { is_basic: true };
     if (Amount >= 149900) update = { is_premium: true };
-
     await supabase.from("users").update({ ...update }).eq("email", OrderId);
     console.log(`✅ Подписка обновлена для ${OrderId}`);
   }
