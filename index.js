@@ -49,6 +49,32 @@ const LIMITS = {
   premium: 500,
 };
 
+// Регистрация пользователя
+app.post("/register", async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ message: "Регистрация успешна", data });
+  } catch (e) {
+    console.error("Ошибка регистрации:", e);
+    res.status(500).json({ error: "Ошибка регистрации" });
+  }
+});
+
+// Логин пользователя
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ message: "Логин успешен", data });
+  } catch (e) {
+    console.error("Ошибка логина:", e);
+    res.status(500).json({ error: "Ошибка логина" });
+  }
+});
+
 // Чат
 app.post("/chat", async (req, res) => {
   const { text, email } = req.body;
