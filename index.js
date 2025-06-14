@@ -43,6 +43,15 @@ const LIMITS = {
   premium: 500,
 };
 
+// === DEBUG ===
+console.log("✅ Backend стартует...");
+console.log("✅ ENV:", {
+  OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+  ELEVENLABS_API_KEY: !!process.env.ELEVENLABS_API_KEY,
+  ELEVENLABS_VOICE_ID: process.env.ELEVENLABS_VOICE_ID,
+  SUPABASE_URL: process.env.SUPABASE_URL,
+});
+
 // Register
 app.post("/register", async (req, res) => {
   const { email, password } = req.body;
@@ -51,7 +60,7 @@ app.post("/register", async (req, res) => {
     if (error) return res.status(400).json({ error: error.message });
     res.json({ message: "Регистрация успешна", data });
   } catch (e) {
-    console.error("Ошибка регистрации:", e);
+    console.error("❌ Ошибка регистрации:", e);
     res.status(500).json({ error: "Ошибка регистрации" });
   }
 });
@@ -64,7 +73,7 @@ app.post("/login", async (req, res) => {
     if (error) return res.status(400).json({ error: error.message });
     res.json({ message: "Логин успешен", data });
   } catch (e) {
-    console.error("Ошибка логина:", e);
+    console.error("❌ Ошибка логина:", e);
     res.status(500).json({ error: "Ошибка логина" });
   }
 });
@@ -73,6 +82,8 @@ app.post("/login", async (req, res) => {
 app.post("/chat", async (req, res) => {
   const { text, email } = req.body;
   const userEmail = email || "guest";
+
+  console.log("👉 [CHAT] text:", text, "email:", userEmail);
 
   try {
     let { data: user, error } = await supabase.from("users").select("*").eq("email", userEmail).single();
@@ -98,9 +109,10 @@ app.post("/chat", async (req, res) => {
     });
 
     const reply = completion.choices[0].message.content;
+    console.log("✅ [CHAT] OpenAI ответ:", reply);
     res.json({ reply });
   } catch (e) {
-    console.error("Ошибка в /chat:", e);
+    console.error("❌ Ошибка в /chat:", e);
     res.status(500).json({ error: "Ошибка чата" });
   }
 });
@@ -108,6 +120,9 @@ app.post("/chat", async (req, res) => {
 // Speak
 app.post("/speak", async (req, res) => {
   const { text } = req.body;
+  console.log("👉 [SPEAK] text:", text);
+  console.log("👉 [SPEAK] VOICE_ID:", process.env.ELEVENLABS_VOICE_ID);
+
   try {
     const result = await axios.post(
       `https://api.elevenlabs.io/v1/text-to-speech/${process.env.ELEVENLABS_VOICE_ID}`,
@@ -124,10 +139,11 @@ app.post("/speak", async (req, res) => {
         },
       }
     );
+    console.log("✅ [SPEAK] Озвучка прошла успешно");
     res.set({ "Content-Type": "audio/mpeg" });
     res.send(result.data);
   } catch (e) {
-    console.error("Ошибка озвучки:", e);
+    console.error("❌ Ошибка в /speak:", e.response?.data || e);
     res.status(500).json({ error: "Ошибка озвучки" });
   }
 });
@@ -135,6 +151,7 @@ app.post("/speak", async (req, res) => {
 // Vision
 app.post("/vision", async (req, res) => {
   const { base64, prompt } = req.body;
+  console.log("👉 [VISION] Запрос vision получен");
   try {
     const result = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -149,9 +166,10 @@ app.post("/vision", async (req, res) => {
         },
       ],
     });
+    console.log("✅ [VISION] Ответ vision:", result.choices[0].message.content);
     res.json({ reply: result.choices[0].message.content });
   } catch (e) {
-    console.error("Ошибка в /vision:", e);
+    console.error("❌ Ошибка в /vision:", e);
     res.status(500).json({ error: "Ошибка vision" });
   }
 });
