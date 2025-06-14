@@ -12,6 +12,7 @@ require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 8080;
 
+// Middleware
 app.use(cors());
 app.use(bodyParser.json({ limit: "10mb" }));
 
@@ -21,27 +22,20 @@ const supabase = createClient(
   process.env.SUPABASE_KEY
 );
 
-// Папка для загрузок
+// Upload dir
 const uploadDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
-// Multer
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
+  destination: (_, __, cb) => cb(null, uploadDir),
+  filename: (_, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
 const upload = multer({ storage });
 
 // OpenAI
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Лимиты
+// Limits
 const LIMITS = {
   guest: 20,
   registered: 50,
@@ -49,7 +43,7 @@ const LIMITS = {
   premium: 500,
 };
 
-// Регистрация пользователя
+// Register
 app.post("/register", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -62,7 +56,7 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// Логин пользователя
+// Login
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -75,27 +69,28 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Чат
+// Chat
 app.post("/chat", async (req, res) => {
   const { text, email } = req.body;
-  if (!email) return res.status(400).json({ error: "Email обязателен" });
+  const userEmail = email || "guest";
 
   try {
-    let { data: user, error } = await supabase.from("users").select("*").eq("email", email).single();
+    let { data: user, error } = await supabase.from("users").select("*").eq("email", userEmail).single();
     if (error || !user) {
-      const { data: newUser } = await supabase.from("users").insert({ email, message_count: 0 }).select().single();
+      const { data: newUser } = await supabase.from("users").insert({ email: userEmail, message_count: 0 }).select().single();
       user = newUser;
     }
 
     let limit = LIMITS.registered;
     if (user.is_premium) limit = LIMITS.premium;
     else if (user.is_basic) limit = LIMITS.basic;
+    else if (user.email === "guest") limit = LIMITS.guest;
 
     if (user.message_count >= limit) {
       return res.json({ reply: "🥲 Лимит сообщений исчерпан. Оформи подписку, чтобы продолжить." });
     }
 
-    await supabase.from("users").update({ message_count: user.message_count + 1 }).eq("email", email);
+    await supabase.from("users").update({ message_count: user.message_count + 1 }).eq("email", userEmail);
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -110,19 +105,41 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// Озвучка
+// Speak — с ЛОГАМИ!
 app.post("/speak", async (req, res) => {
   const { text } = req.body;
   try {
     const result = await axios.post(
-      "https://api.elevenlabs.io/v1/text-to-speech/" + process.env.ELEVENLABS_VOICE_ID,
-      { text, model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.3, similarity_boost: 0.7 } },
-      { responseType: "arraybuffer", headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY, "Content-Type": "application/json" } }
+      `https://api.elevenlabs.io/v1/text-to-speech/${process.env.ELEVENLABS_VOICE_ID}`,
+      {
+        text,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: { stability: 0.3, similarity_boost: 0.7 },
+      },
+      {
+        responseType: "arraybuffer",
+        headers: {
+          "xi-api-key": process.env.ELEVENLABS_API_KEY,
+          "Content-Type": "application/json",
+        },
+      }
     );
+
+    // ЛОГИРУЕМ ВСЁ!
+    console.log("✅ TTS STATUS:", result.status);
+    console.log("✅ TTS HEADERS:", result.headers);
+    console.log("✅ TTS RAW DATA (buffer length):", result.data?.length);
+
     res.set({ "Content-Type": "audio/mpeg" });
     res.send(result.data);
+
   } catch (e) {
-    console.error("Ошибка озвучки:", e);
+    if (e.response) {
+      console.error("❌ TTS ERROR STATUS:", e.response.status);
+      console.error("❌ TTS ERROR DATA:", e.response.data);
+    } else {
+      console.error("❌ TTS GENERAL ERROR:", e);
+    }
     res.status(500).json({ error: "Ошибка озвучки" });
   }
 });
@@ -172,6 +189,7 @@ app.post("/webhook", async (req, res) => {
   res.sendStatus(200);
 });
 
+// Start
 app.listen(port, () => {
   console.log(`✅ Egorych backend is running on port ${port}`);
 });
