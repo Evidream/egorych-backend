@@ -110,7 +110,7 @@ app.post("/speak", async (req, res) => {
   const { text } = req.body;
   try {
     const result = await axios.post(
-      `https://api.elevenlabs.io/v1/text-to-speech/${process.env.ELEVENLABS_VOICE_ID}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${process.env.VOICE_ID}`,
       {
         text,
         model_id: "eleven_multilingual_v2",
