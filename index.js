@@ -12,17 +12,22 @@ require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json({ limit: "10mb" }));
+// === ТВОИ ЗАШИТЫЕ КЛЮЧИ ===
+const OPENAI_API_KEY = "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";
+const ELEVENLABS_API_KEY = "sk_6e008ec729f7b3112e0933e829d0e761822d6a1a7af51386";
+const ELEVENLABS_VOICE_ID = "LXEO7heMSXmIiTgOmHhM";
 
-// Supabase
+// === Supabase ===
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
 );
 
-// Upload dir
+// === Middleware ===
+app.use(cors());
+app.use(bodyParser.json({ limit: "10mb" }));
+
+// === Upload Dir ===
 const uploadDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
@@ -32,10 +37,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// OpenAI
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// === OpenAI ===
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-// Limits
+// === Limits ===
 const LIMITS = {
   guest: 20,
   registered: 50,
@@ -45,14 +50,12 @@ const LIMITS = {
 
 // === DEBUG ===
 console.log("✅ Backend стартует...");
-console.log("✅ ENV:", {
-  OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
-  ELEVENLABS_API_KEY: !!process.env.ELEVENLABS_API_KEY,
-  ELEVENLABS_VOICE_ID: process.env.ELEVENLABS_VOICE_ID,
-  SUPABASE_URL: process.env.SUPABASE_URL,
-});
+console.log("✅ OpenAI API:", !!OPENAI_API_KEY);
+console.log("✅ ElevenLabs API:", !!ELEVENLABS_API_KEY);
+console.log("✅ ElevenLabs VOICE_ID:", ELEVENLABS_VOICE_ID);
+console.log("✅ Supabase:", process.env.SUPABASE_URL);
 
-// Register
+// === Register ===
 app.post("/register", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -65,7 +68,7 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// Login
+// === Login ===
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -78,7 +81,7 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Chat
+// === Chat ===
 app.post("/chat", async (req, res) => {
   const { text, email } = req.body;
   const userEmail = email || "guest";
@@ -109,7 +112,7 @@ app.post("/chat", async (req, res) => {
     });
 
     const reply = completion.choices[0].message.content;
-    console.log("✅ [CHAT] OpenAI ответ:", reply);
+    console.log("✅ [CHAT] Ответ:", reply);
     res.json({ reply });
   } catch (e) {
     console.error("❌ Ошибка в /chat:", e);
@@ -117,15 +120,15 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// Speak
+// === Speak ===
 app.post("/speak", async (req, res) => {
   const { text } = req.body;
   console.log("👉 [SPEAK] text:", text);
-  console.log("👉 [SPEAK] VOICE_ID:", process.env.ELEVENLABS_VOICE_ID);
+  console.log("👉 [SPEAK] VOICE_ID:", ELEVENLABS_VOICE_ID);
 
   try {
     const result = await axios.post(
-      `https://api.elevenlabs.io/v1/text-to-speech/${process.env.ELEVENLABS_VOICE_ID}`,
+      `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
       {
         text,
         model_id: "eleven_multilingual_v2",
@@ -134,12 +137,12 @@ app.post("/speak", async (req, res) => {
       {
         responseType: "arraybuffer",
         headers: {
-          "xi-api-key": process.env.ELEVENLABS_API_KEY,
+          "xi-api-key": ELEVENLABS_API_KEY,
           "Content-Type": "application/json",
         },
       }
     );
-    console.log("✅ [SPEAK] Озвучка прошла успешно");
+    console.log("✅ [SPEAK] Озвучка успешна");
     res.set({ "Content-Type": "audio/mpeg" });
     res.send(result.data);
   } catch (e) {
@@ -148,10 +151,10 @@ app.post("/speak", async (req, res) => {
   }
 });
 
-// Vision
+// === Vision ===
 app.post("/vision", async (req, res) => {
   const { base64, prompt } = req.body;
-  console.log("👉 [VISION] Запрос vision получен");
+  console.log("👉 [VISION] Запрос получен");
   try {
     const result = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -166,7 +169,7 @@ app.post("/vision", async (req, res) => {
         },
       ],
     });
-    console.log("✅ [VISION] Ответ vision:", result.choices[0].message.content);
+    console.log("✅ [VISION] Ответ:", result.choices[0].message.content);
     res.json({ reply: result.choices[0].message.content });
   } catch (e) {
     console.error("❌ Ошибка в /vision:", e);
@@ -174,7 +177,7 @@ app.post("/vision", async (req, res) => {
   }
 });
 
-// Upload
+// === Upload ===
 app.post("/upload", upload.single("file"), async (req, res) => {
   const filePath = req.file.path;
   const fileData = fs.readFileSync(filePath);
@@ -183,7 +186,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
   res.json({ base64 });
 });
 
-// Webhook
+// === Webhook ===
 app.post("/webhook", async (req, res) => {
   const { Status, OrderId, Amount } = req.body;
   if (Status === "CONFIRMED") {
@@ -196,5 +199,5 @@ app.post("/webhook", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`✅ Egorych backend is running on port ${port}`);
+  console.log(`✅ Egorych backend запущен на порту ${port}`);
 });
