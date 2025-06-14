@@ -7,27 +7,26 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
-require("dotenv").config();
 
-const app = express();
-const port = process.env.PORT || 8080;
-
-// === ТВОИ ЗАШИТЫЕ КЛЮЧИ ===
+// === РЕАЛЬНЫЕ ДАННЫЕ ===
 const OPENAI_API_KEY = "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";
 const ELEVENLABS_API_KEY = "sk_6e008ec729f7b3112e0933e829d0e761822d6a1a7af51386";
 const ELEVENLABS_VOICE_ID = "LXEO7heMSXmIiTgOmHhM";
 
-// === Supabase ===
+// === ТВОЙ SUPABASE ===
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
+  "https://zsgcxluijorbvmnchuwx.supabase.co",
+  "ТВОЙ_SUPABASE_KEY_ОСТАВЬ КАК ЕСТЬ"
 );
 
-// === Middleware ===
+const app = express();
+const port = process.env.PORT || 8080;
+
+// Middleware
 app.use(cors());
 app.use(bodyParser.json({ limit: "10mb" }));
 
-// === Upload Dir ===
+// Upload dir
 const uploadDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
@@ -40,7 +39,13 @@ const upload = multer({ storage });
 // === OpenAI ===
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
-// === Limits ===
+// === DEBUG ===
+console.log("✅ Backend стартует...");
+console.log("✅ OpenAI:", !!OPENAI_API_KEY);
+console.log("✅ ElevenLabs:", !!ELEVENLABS_API_KEY);
+console.log("✅ Voice ID:", ELEVENLABS_VOICE_ID);
+
+// === LIMITS ===
 const LIMITS = {
   guest: 20,
   registered: 50,
@@ -48,14 +53,7 @@ const LIMITS = {
   premium: 500,
 };
 
-// === DEBUG ===
-console.log("✅ Backend стартует...");
-console.log("✅ OpenAI API:", !!OPENAI_API_KEY);
-console.log("✅ ElevenLabs API:", !!ELEVENLABS_API_KEY);
-console.log("✅ ElevenLabs VOICE_ID:", ELEVENLABS_VOICE_ID);
-console.log("✅ Supabase:", process.env.SUPABASE_URL);
-
-// === Register ===
+// === REGISTER ===
 app.post("/register", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -68,7 +66,7 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// === Login ===
+// === LOGIN ===
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -81,7 +79,7 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// === Chat ===
+// === CHAT ===
 app.post("/chat", async (req, res) => {
   const { text, email } = req.body;
   const userEmail = email || "guest";
@@ -112,7 +110,7 @@ app.post("/chat", async (req, res) => {
     });
 
     const reply = completion.choices[0].message.content;
-    console.log("✅ [CHAT] Ответ:", reply);
+    console.log("✅ [CHAT] OpenAI ответ:", reply);
     res.json({ reply });
   } catch (e) {
     console.error("❌ Ошибка в /chat:", e);
@@ -120,7 +118,7 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// === Speak ===
+// === SPEAK ===
 app.post("/speak", async (req, res) => {
   const { text } = req.body;
   console.log("👉 [SPEAK] text:", text);
@@ -142,7 +140,7 @@ app.post("/speak", async (req, res) => {
         },
       }
     );
-    console.log("✅ [SPEAK] Озвучка успешна");
+    console.log("✅ [SPEAK] Озвучка прошла успешно");
     res.set({ "Content-Type": "audio/mpeg" });
     res.send(result.data);
   } catch (e) {
@@ -151,10 +149,10 @@ app.post("/speak", async (req, res) => {
   }
 });
 
-// === Vision ===
+// === VISION ===
 app.post("/vision", async (req, res) => {
   const { base64, prompt } = req.body;
-  console.log("👉 [VISION] Запрос получен");
+  console.log("👉 [VISION] Запрос vision получен");
   try {
     const result = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -169,7 +167,7 @@ app.post("/vision", async (req, res) => {
         },
       ],
     });
-    console.log("✅ [VISION] Ответ:", result.choices[0].message.content);
+    console.log("✅ [VISION] Ответ vision:", result.choices[0].message.content);
     res.json({ reply: result.choices[0].message.content });
   } catch (e) {
     console.error("❌ Ошибка в /vision:", e);
@@ -177,7 +175,7 @@ app.post("/vision", async (req, res) => {
   }
 });
 
-// === Upload ===
+// === UPLOAD ===
 app.post("/upload", upload.single("file"), async (req, res) => {
   const filePath = req.file.path;
   const fileData = fs.readFileSync(filePath);
@@ -186,7 +184,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
   res.json({ base64 });
 });
 
-// === Webhook ===
+// === WEBHOOK ===
 app.post("/webhook", async (req, res) => {
   const { Status, OrderId, Amount } = req.body;
   if (Status === "CONFIRMED") {
