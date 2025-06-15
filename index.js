@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
+const { OpenAI } = require("openai");
 const axios = require("axios");
 const multer = require("multer");
 const path = require("path");
@@ -12,10 +13,11 @@ const OPENAI_API_KEY = "sk-proj-452USK2_WtIQCEEW2rXctn-J_masodci_PXx6OirBHUJNnu2
 const ELEVENLABS_API_KEY = "sk_6e008ec729f7b3112e0933e829d0e761822d6a1a7af51386";
 const ELEVENLABS_VOICE_ID = "LXEO7heMSXmIiTgOmHhM";
 const SUPABASE_URL = "https://zsgcxlujjorbvnmchuwx.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; // твой Supabase ключ
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpzZ2N4bHVqam9yYnZubWNodXd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NjMyMjIsImV4cCI6MjA2NDQzOTIyMn0.3GdF_7nwzl4O9TTL3RlXsP-uOsK-F1n_ckzxW_dfemI";
 
-// === INIT ===
+// === ИНИЦ ===
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 const app = express();
 const port = process.env.PORT || 8080;
 
@@ -72,7 +74,7 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// === CHAT через AXIOS ===
+// === CHAT ===
 app.post("/chat", async (req, res) => {
   const { text, email } = req.body;
   const userEmail = email || "guest";
@@ -82,9 +84,18 @@ app.post("/chat", async (req, res) => {
   try {
     let { data: user, error } = await supabase.from("users").select("*").eq("email", userEmail).single();
     if (error || !user) {
-      const { data: newUser } = await supabase.from("users").insert({ email: userEmail, message_count: 0 }).select().single();
+      const { data: newUser } = await supabase.from("users").insert({
+        email: userEmail,
+        message_count: 0,
+        is_premium: false, // 👈 гарантируем FALSE
+        is_basic: false    // 👈 гарантируем FALSE
+      }).select().single();
       user = newUser;
     }
+
+    // ✅ Подстраховка: если всё равно null — делаем false
+    user.is_premium = !!user.is_premium;
+    user.is_basic = !!user.is_basic;
 
     let limit = LIMITS.registered;
     if (user.is_premium) limit = LIMITS.premium;
@@ -97,33 +108,25 @@ app.post("/chat", async (req, res) => {
 
     await supabase.from("users").update({ message_count: user.message_count + 1 }).eq("email", userEmail);
 
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: "gpt-4o",
-        messages: [{ role: "user", content: text }],
-      },
-      {
-        headers: {
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{ role: "user", content: text }],
+    });
 
-    const reply = response.data.choices[0].message.content;
+    const reply = completion.choices[0].message.content;
     console.log("✅ [CHAT] OpenAI ответ:", reply);
     res.json({ reply });
   } catch (e) {
-    console.error("❌ Ошибка в /chat:", e.response?.data || e);
+    console.error("❌ Ошибка в /chat:", e);
     res.status(500).json({ error: "Ошибка чата" });
   }
 });
 
-// === SPEAK (как есть) ===
+// === SPEAK ===
 app.post("/speak", async (req, res) => {
   const { text } = req.body;
   console.log("👉 [SPEAK] text:", text);
+  console.log("👉 [SPEAK] VOICE_ID:", ELEVENLABS_VOICE_ID);
 
   try {
     const result = await axios.post(
@@ -150,40 +153,28 @@ app.post("/speak", async (req, res) => {
   }
 });
 
-// === VISION через AXIOS ===
+// === VISION ===
 app.post("/vision", async (req, res) => {
   const { base64, prompt } = req.body;
-  console.log("👉 [VISION] Получен запрос");
-
+  console.log("👉 [VISION] Запрос vision получен");
   try {
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: "Ты — заботливый помощник, который понимает изображения." },
-          {
-            role: "user",
-            content: [
-              { type: "image_url", image_url: { url: base64 } },
-              { type: "text", text: prompt || "Что на фото?" },
-            ],
-          },
-        ],
-      },
-      {
-        headers: {
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
+    const result = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: "Ты — заботливый помощник, который понимает изображения." },
+        {
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: base64 } },
+            { type: "text", text: prompt || "Что на фото?" },
+          ],
         },
-      }
-    );
-
-    const reply = response.data.choices[0].message.content;
-    console.log("✅ [VISION] Ответ:", reply);
-    res.json({ reply });
+      ],
+    });
+    console.log("✅ [VISION] Ответ vision:", result.choices[0].message.content);
+    res.json({ reply: result.choices[0].message.content });
   } catch (e) {
-    console.error("❌ Ошибка в /vision:", e.response?.data || e);
+    console.error("❌ Ошибка в /vision:", e);
     res.status(500).json({ error: "Ошибка vision" });
   }
 });
