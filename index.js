@@ -45,7 +45,7 @@ console.log("✅ Supabase URL:", SUPABASE_URL);
 
 // === LIMITS ===
 const LIMITS = {
-  guest: 20,
+  guest: 100,
   registered: 50,
   basic: 250,
   premium: 500,
