@@ -35,9 +35,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// === OpenAI ===
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-
 // === DEBUG ===
 console.log("✅ Backend стартует...");
 console.log("✅ OpenAI:", !!OPENAI_API_KEY);
