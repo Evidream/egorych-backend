@@ -9,7 +9,7 @@ const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
 
 // === ПОДТЯГИВАЕМ ЧТО НАДО ===
-const OPENAI_API_KEY = "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";
+const OPENAI_API_KEY = new OpenAI({ apiKey: "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" });
 const ELEVENLABS_API_KEY = "sk_6e008ec729f7b3112e0933e829d0e761822d6a1a7af51386";
 const ELEVENLABS_VOICE_ID = "LXEO7heMSXmIiTgOmHhM";
 const SUPABASE_URL = "https://zsgcxlujjorbvnmchuwx.supabase.co";
