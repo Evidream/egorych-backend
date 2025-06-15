@@ -8,14 +8,16 @@ const path = require("path");
 const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
 
-// === ПОДТЯГИВАЕМ ЧТО НАДО ===
-const OPENAI_API_KEY = new OpenAI({ apiKey: "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" });
+// === ПРАВИЛЬНОЕ ОБЪЯВЛЕНИЕ ВСЕХ КЛЮЧЕЙ ===
+const OPENAI_API_KEY = "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";
 const ELEVENLABS_API_KEY = "sk_6e008ec729f7b3112e0933e829d0e761822d6a1a7af51386";
 const ELEVENLABS_VOICE_ID = "LXEO7heMSXmIiTgOmHhM";
 const SUPABASE_URL = "https://zsgcxlujjorbvnmchuwx.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpzZ2N4bHVqam9yYnZubWNodXd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NjMyMjIsImV4cCI6MjA2NDQzOTIyMn0.3GdF_7nwzl4O9TTL3RlXsP-uOsK-F1n_ckzxW_dfemI";
 
+// === ПОДКЛЮЧАЕМ SUPABASE и OpenAI ===
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 const app = express();
 const port = process.env.PORT || 8080;
