@@ -209,4 +209,4 @@ app.post("/webhook", async (req, res) => {
 // === START ===
 app.listen(port, () => {
   console.log(`✅ Egorych backend запущен на порту ${port}`);
-});
+}); 
