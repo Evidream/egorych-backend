@@ -83,17 +83,21 @@ app.post("/chat", async (req, res) => {
 
   try {
     let { data: user, error } = await supabase.from("users").select("*").eq("email", userEmail).single();
+
     if (error || !user) {
-      const { data: newUser } = await supabase.from("users").insert({
+      // вставляем без select().single()
+      await supabase.from("users").insert({
         email: userEmail,
         message_count: 0,
-        is_premium: false, // 👈 гарантируем FALSE
-        is_basic: false    // 👈 гарантируем FALSE
-      }).select().single();
-      user = newUser;
+        is_premium: false,
+        is_basic: false
+      });
+
+      // читаем заново
+      const { data: created } = await supabase.from("users").select("*").eq("email", userEmail).single();
+      user = created;
     }
 
-    // ✅ Подстраховка: если всё равно null — делаем false
     user.is_premium = !!user.is_premium;
     user.is_basic = !!user.is_basic;
 
