@@ -8,9 +8,9 @@ const path = require("path");
 const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
 
-// === ПОДТЯГИВАЕМ КЛЮЧИ ===
+// === ПОДТЯГИВАЕМ ЧТО НАДО ===
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const ELEVENLABS_API_KEY = "sk_6e008ec729f7b3112e0933e829d0e761822d6a1a7af51386"; // ЗАШИТЫЙ!
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
