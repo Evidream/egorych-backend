@@ -9,7 +9,7 @@ const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
 
 // === ПОДТЯГИВАЕМ ЧТО НАДО ===
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_API_KEY = "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"; // ЗАШИТЫЙ!
 const ELEVENLABS_API_KEY = "sk_6e008ec729f7b3112e0933e829d0e761822d6a1a7af51386"; // ЗАШИТЫЙ!
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID;
 const SUPABASE_URL = process.env.SUPABASE_URL;
