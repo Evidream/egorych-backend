@@ -9,7 +9,7 @@ const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
 
 // === CONFIG ===
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // ✅ ПОДТЯГИВАЕМ ИЗ ENV!
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // ✅ Только из Variables
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID;
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -209,4 +209,4 @@ app.post("/webhook", async (req, res) => {
 // === START ===
 app.listen(port, () => {
   console.log(`✅ Egorych backend запущен на порту ${port}`);
-}); 
+});
