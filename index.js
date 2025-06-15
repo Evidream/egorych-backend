@@ -1,3 +1,4 @@
+// === DEPENDENCIES ===
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
@@ -7,8 +8,8 @@ const path = require("path");
 const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
 
-// === ТВОИ КЛЮЧИ ===
-const OPENAI_API_KEY = "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";
+// === CONFIG ===
+const OPENAI_API_KEY = "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";
 const ELEVENLABS_API_KEY = "sk_6e008ec729f7b3112e0933e829d0e761822d6a1a7af51386";
 const ELEVENLABS_VOICE_ID = "LXEO7heMSXmIiTgOmHhM";
 const SUPABASE_URL = "https://zsgcxlujjorbvnmchuwx.supabase.co";
@@ -31,15 +32,20 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// === LIMITS ===
-const LIMITS = { guest: 100, registered: 50, basic: 250, premium: 500 };
-
 // === DEBUG ===
 console.log("✅ Backend стартует...");
 console.log("✅ OpenAI:", !!OPENAI_API_KEY);
 console.log("✅ ElevenLabs:", !!ELEVENLABS_API_KEY);
 console.log("✅ Voice ID:", ELEVENLABS_VOICE_ID);
 console.log("✅ Supabase URL:", SUPABASE_URL);
+
+// === LIMITS ===
+const LIMITS = {
+  guest: 100,
+  registered: 50,
+  basic: 250,
+  premium: 500,
+};
 
 // === REGISTER ===
 app.post("/register", async (req, res) => {
@@ -49,6 +55,7 @@ app.post("/register", async (req, res) => {
     if (error) return res.status(400).json({ error: error.message });
     res.json({ message: "Регистрация успешна", data });
   } catch (e) {
+    console.error("❌ Ошибка регистрации:", e);
     res.status(500).json({ error: "Ошибка регистрации" });
   }
 });
@@ -61,25 +68,22 @@ app.post("/login", async (req, res) => {
     if (error) return res.status(400).json({ error: error.message });
     res.json({ message: "Логин успешен", data });
   } catch (e) {
+    console.error("❌ Ошибка логина:", e);
     res.status(500).json({ error: "Ошибка логина" });
   }
 });
 
-// === CHAT (ТОЛЬКО AXIOS) ===
+// === CHAT ===
 app.post("/chat", async (req, res) => {
   const { text, email } = req.body;
   const userEmail = email || "guest";
+
   console.log("👉 [CHAT] text:", text, "email:", userEmail);
 
   try {
-    let { data: user } = await supabase.from("users").select("*").eq("email", userEmail).single();
-    if (!user) {
-      const { data: newUser } = await supabase.from("users").insert({
-        email: userEmail,
-        message_count: 0,
-        is_premium: false,
-        is_basic: false
-      }).select().single();
+    let { data: user, error } = await supabase.from("users").select("*").eq("email", userEmail).single();
+    if (error || !user) {
+      const { data: newUser } = await supabase.from("users").insert({ email: userEmail, message_count: 0, is_basic: false, is_premium: false }).select().single();
       user = newUser;
     }
 
@@ -98,7 +102,7 @@ app.post("/chat", async (req, res) => {
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o",
-        messages: [{ role: "user", content: text }]
+        messages: [{ role: "user", content: text }],
       },
       {
         headers: {
@@ -109,7 +113,7 @@ app.post("/chat", async (req, res) => {
     );
 
     const reply = completion.data.choices[0].message.content;
-    console.log("✅ [CHAT] Ответ:", reply);
+    console.log("✅ [CHAT] OpenAI ответ:", reply);
     res.json({ reply });
   } catch (e) {
     console.error("❌ Ошибка в /chat:", e.response?.data || e);
@@ -117,13 +121,18 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// === SPEAK (AXIOS) ===
+// === SPEAK ===
 app.post("/speak", async (req, res) => {
   const { text } = req.body;
+  console.log("👉 [SPEAK] text:", text);
   try {
     const result = await axios.post(
       `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
-      { text, model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.3, similarity_boost: 0.7 } },
+      {
+        text,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: { stability: 0.3, similarity_boost: 0.7 },
+      },
       {
         responseType: "arraybuffer",
         headers: {
@@ -132,23 +141,26 @@ app.post("/speak", async (req, res) => {
         },
       }
     );
+    console.log("✅ [SPEAK] Озвучка прошла успешно");
     res.set({ "Content-Type": "audio/mpeg" });
     res.send(result.data);
   } catch (e) {
+    console.error("❌ Ошибка в /speak:", e.response?.data || e);
     res.status(500).json({ error: "Ошибка озвучки" });
   }
 });
 
-// === VISION (AXIOS) ===
+// === VISION ===
 app.post("/vision", async (req, res) => {
   const { base64, prompt } = req.body;
+  console.log("👉 [VISION] Запрос vision получен");
   try {
     const result = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o",
         messages: [
-          { role: "system", content: "Ты — заботливый помощник, который понимает изображения." },
+          { role: "system", content: "Ты — помощник, который понимает изображения." },
           {
             role: "user",
             content: [
@@ -165,8 +177,10 @@ app.post("/vision", async (req, res) => {
         },
       }
     );
+    console.log("✅ [VISION] Ответ:", result.data.choices[0].message.content);
     res.json({ reply: result.data.choices[0].message.content });
   } catch (e) {
+    console.error("❌ Ошибка в /vision:", e.response?.data || e);
     res.status(500).json({ error: "Ошибка vision" });
   }
 });
@@ -187,10 +201,12 @@ app.post("/webhook", async (req, res) => {
     let update = { is_basic: true };
     if (Amount >= 149900) update = { is_premium: true };
     await supabase.from("users").update({ ...update }).eq("email", OrderId);
+    console.log(`✅ Подписка обновлена для ${OrderId}`);
   }
   res.sendStatus(200);
 });
 
+// === START ===
 app.listen(port, () => {
   console.log(`✅ Egorych backend запущен на порту ${port}`);
 });
