@@ -8,27 +8,25 @@ const path = require("path");
 const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
 
-// === ПРАВИЛЬНОЕ ОБЪЯВЛЕНИЕ ВСЕХ КЛЮЧЕЙ ===
+// === КЛЮЧИ ===
 const OPENAI_API_KEY = "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";
 const ELEVENLABS_API_KEY = "sk_6e008ec729f7b3112e0933e829d0e761822d6a1a7af51386";
 const ELEVENLABS_VOICE_ID = "LXEO7heMSXmIiTgOmHhM";
 const SUPABASE_URL = "https://zsgcxlujjorbvnmchuwx.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpzZ2N4bHVqam9yYnZubWNodXd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NjMyMjIsImV4cCI6MjA2NDQzOTIyMn0.3GdF_7nwzl4O9TTL3RlXsP-uOsK-F1n_ckzxW_dfemI";
 
-// === ПОДКЛЮЧАЕМ SUPABASE и OpenAI ===
+// === ИНИЦ ===
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
-
 const app = express();
 const port = process.env.PORT || 8080;
 
 app.use(cors());
 app.use(bodyParser.json({ limit: "10mb" }));
 
-// === ПАПКА UPLOAD ===
+// === UPLOAD ===
 const uploadDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
-
 const storage = multer.diskStorage({
   destination: (_, __, cb) => cb(null, uploadDir),
   filename: (_, file, cb) => cb(null, Date.now() + "-" + file.originalname),
@@ -123,7 +121,7 @@ app.post("/speak", async (req, res) => {
 
   try {
     const result = await axios.post(
-      https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID},
+      `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
       {
         text,
         model_id: "eleven_multilingual_v2",
@@ -176,7 +174,7 @@ app.post("/vision", async (req, res) => {
 app.post("/upload", upload.single("file"), async (req, res) => {
   const filePath = req.file.path;
   const fileData = fs.readFileSync(filePath);
-  const base64 = data:${req.file.mimetype};base64, + fileData.toString("base64");
+  const base64 = `data:${req.file.mimetype};base64,` + fileData.toString("base64");
   fs.unlinkSync(filePath);
   res.json({ base64 });
 });
@@ -188,11 +186,11 @@ app.post("/webhook", async (req, res) => {
     let update = { is_basic: true };
     if (Amount >= 149900) update = { is_premium: true };
     await supabase.from("users").update({ ...update }).eq("email", OrderId);
-    console.log(✅ Подписка обновлена для ${OrderId});
+    console.log(`✅ Подписка обновлена для ${OrderId}`);
   }
   res.sendStatus(200);
 });
 
 app.listen(port, () => {
-  console.log(✅ Egorych backend запущен на порту ${port});
+  console.log(`✅ Egorych backend запущен на порту ${port}`);
 });
