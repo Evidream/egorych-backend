@@ -9,11 +9,11 @@ const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
 
 // === CONFIG ===
-const OPENAI_API_KEY = "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";
-const ELEVENLABS_API_KEY = "sk_6e008ec729f7b3112e0933e829d0e761822d6a1a7af51386";
-const ELEVENLABS_VOICE_ID = "LXEO7heMSXmIiTgOmHhM";
-const SUPABASE_URL = "https://zsgcxlujjorbvnmchuwx.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpzZ2N4bHVqam9yYnZubWNodXd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg4NjMyMjIsImV4cCI6MjA2NDQzOTIyMn0.3GdF_7nwzl4O9TTL3RlXsP-uOsK-F1n_ckzxW_dfemI";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // ✅ ПОДТЯГИВАЕМ ИЗ ENV!
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
+const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 // === INIT ===
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -101,7 +101,7 @@ app.post("/chat", async (req, res) => {
     const completion = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o",
         messages: [{ role: "user", content: text }],
       },
       {
