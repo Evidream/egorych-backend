@@ -9,7 +9,7 @@ const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
 
 // === ПРАВИЛЬНОЕ ОБЪЯВЛЕНИЕ ВСЕХ КЛЮЧЕЙ ===
-const OPENAI_API_KEY = "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";
+const OPENAI_API_KEY = "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";
 const ELEVENLABS_API_KEY = "sk_6e008ec729f7b3112e0933e829d0e761822d6a1a7af51386";
 const ELEVENLABS_VOICE_ID = "LXEO7heMSXmIiTgOmHhM";
 const SUPABASE_URL = "https://zsgcxlujjorbvnmchuwx.supabase.co";
