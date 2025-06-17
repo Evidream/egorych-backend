@@ -93,7 +93,7 @@ app.post("/chat", async (req, res) => {
         .from("users")
         .insert({
           email: userEmail,
-          plan: "guest",             // ✅ ВАЖНО! новый user = план guest
+          plan: "guest", // ✅ Гарантия: новый = guest
           message_count: 0
         })
         .select()
@@ -102,7 +102,7 @@ app.post("/chat", async (req, res) => {
     }
 
     // 2️⃣ Определяем лимит по plan
-    let limit = LIMITS.user;
+    let limit = LIMITS.user; // по умолчанию user
     if (user.plan === "whisky") limit = LIMITS.whisky;
     else if (user.plan === "beer") limit = LIMITS.beer;
     else if (user.plan === "guest") limit = LIMITS.guest;
@@ -110,7 +110,7 @@ app.post("/chat", async (req, res) => {
     // 3️⃣ Если лимит исчерпан — стоп чат и предлагаем регистрацию
     if (user.message_count >= limit) {
       return res.json({
-        reply: "Слушай, а чё мы как не родные-то? Зарегайся пыренько — там реально 5 сек! Давай познакомимся поближе, а то как два гуся 🪿🪿!"
+        reply: "🥲 Лимит сообщений исчерпан! Зарегистрируйся за 5 сек и продолжим болтать как два гуся 🪿🪿!"
       });
     }
 
