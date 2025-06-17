@@ -121,36 +121,6 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-    // === Обновляем счётчик ===
-    await supabase
-      .from("users")
-      .update({ message_count: user.message_count + 1 })
-      .eq("email", userEmail);
-
-    // === GPT ===
-    const completion = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        model: "gpt-4o",
-        messages: [{ role: "user", content: text }],
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    const reply = completion.data.choices[0].message.content;
-    console.log("✅ [CHAT] OpenAI ответ:", reply);
-    res.json({ reply });
-  } catch (e) {
-    console.error("❌ Ошибка в /chat:", e.response?.data || e);
-    res.status(500).json({ error: "Ошибка чата" });
-  }
-});
-
 // === SPEAK ===
 app.post("/speak", async (req, res) => {
   const { text } = req.body;
@@ -161,7 +131,7 @@ app.post("/speak", async (req, res) => {
       {
         text,
         model_id: "eleven_multilingual_v2",
-        voice_settings: { stability: 0.5, similarity_boost: 0.8, style_exaggeration: 0.25 },
+        voice_settings: { stability: 0.3, similarity_boost: 0.7 },
       },
       {
         responseType: "arraybuffer",
