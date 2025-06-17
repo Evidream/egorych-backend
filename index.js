@@ -81,18 +81,9 @@ app.post("/chat", async (req, res) => {
   console.log("👉 [CHAT] text:", text, "email:", userEmail);
 
   try {
-    let { data: user, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("email", userEmail)
-      .single();
-
+    let { data: user, error } = await supabase.from("users").select("*").eq("email", userEmail).single();
     if (error || !user) {
-      const { data: newUser } = await supabase
-        .from("users")
-        .insert({ email: userEmail, message_count: 0, is_basic: false, is_premium: false })
-        .select()
-        .single();
+      const { data: newUser } = await supabase.from("users").insert({ email: userEmail, message_count: 0, is_basic: false, is_premium: false }).select().single();
       user = newUser;
     }
 
@@ -101,15 +92,34 @@ app.post("/chat", async (req, res) => {
     else if (user.is_basic) limit = LIMITS.basic;
     else if (user.email === "guest") limit = LIMITS.guest;
 
-    // === Если лимит превышен ===
     if (user.message_count >= limit) {
-      // ✅ Вот тут твой «чё мы как не родные» + красивая ссылка
-      const regMsg = `
-        Слушай, а чё мы как не родные то? Зарегайся пыренько — там рели 5 сек. Хоть познакомимся, а то как два гуся!. <br><br>
-        👉 <a href="https://egorych.ai/members/signup/group/adm1q1c2mc9ttfv-start" target="_blank" style="color:#9221BA;text-decoration:underline;">Регайся скорее</a> и продолжим лялякать! ❤️
-      `;
-      return res.json({ reply: regMsg });
+      return res.json({ reply: "Слушай, а чё мы как не родные то? Зарегайся пыренько — там рели 5 сек. Хоть познакомимся, а то как два гуся! Регайся скорее и продолжим лялякать: egorych.ai/members/signup/group/adm1q1c2mc9ttfv-start" });
     }
+
+    await supabase.from("users").update({ message_count: user.message_count + 1 }).eq("email", userEmail);
+
+    const completion = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-4o",
+        messages: [{ role: "user", content: text }],
+      },
+      {
+        headers: {
+          Authorization: Bearer ${OPENAI_API_KEY},
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const reply = completion.data.choices[0].message.content;
+    console.log("✅ [CHAT] OpenAI ответ:", reply);
+    res.json({ reply });
+  } catch (e) {
+    console.error("❌ Ошибка в /chat:", e.response?.data || e);
+    res.status(500).json({ error: "Ошибка чата" });
+  }
+});
 
     // === Обновляем счётчик ===
     await supabase
