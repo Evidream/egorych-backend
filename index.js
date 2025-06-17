@@ -93,7 +93,7 @@ app.post("/chat", async (req, res) => {
     else if (user.email === "guest") limit = LIMITS.guest;
 
     if (user.message_count >= limit) {
-      return res.json({ reply: "Слушай, а чё мы как не родные то? Зарегайся пыренько — там рели 5 сек. Хоть познакомимся, а то как два гуся! Регайся скорее и продолжим лялякать: egorych.ai/members/signup/group/adm1q1c2mc9ttfv-start" });
+      return res.json({ reply: "Слушай, а чё мы как не родные то? Зарегайся пыренько — там рели 5 сек. Хоть познакомимся, а то как два гуся! Регайся скорее и продолжим лялякать гг" });
     }
 
     await supabase.from("users").update({ message_count: user.message_count + 1 }).eq("email", userEmail);
