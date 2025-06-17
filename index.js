@@ -81,23 +81,46 @@ app.post("/chat", async (req, res) => {
   console.log("👉 [CHAT] text:", text, "email:", userEmail);
 
   try {
-    let { data: user, error } = await supabase.from("users").select("*").eq("email", userEmail).single();
+    // 1️⃣ Проверяем юзера или создаём нового
+    let { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", userEmail)
+      .single();
+
     if (error || !user) {
-      const { data: newUser } = await supabase.from("users").insert({ email: userEmail, message_count: 0, is_basic: false, is_premium: false }).select().single();
+      const { data: newUser } = await supabase
+        .from("users")
+        .insert({
+          email: userEmail,
+          plan: "guest",             // ✅ ВАЖНО! новый user = план guest
+          message_count: 0
+        })
+        .select()
+        .single();
       user = newUser;
     }
 
-  let limit = LIMITS.user;
-if (user.plan === "whisky") limit = LIMITS.whisky;
-else if (user.plan === "beer") limit = LIMITS.beer;
-else if (user.email === "guest") limit = LIMITS.guest;
+    // 2️⃣ Определяем лимит по plan
+    let limit = LIMITS.user;
+    if (user.plan === "whisky") limit = LIMITS.whisky;
+    else if (user.plan === "beer") limit = LIMITS.beer;
+    else if (user.plan === "guest") limit = LIMITS.guest;
 
+    // 3️⃣ Если лимит исчерпан — стоп чат и предлагаем регистрацию
     if (user.message_count >= limit) {
-      return res.json({ reply: "Слушай, а чё мы как не родные то? Зарегайся пыренько — там рели 5 сек. Хоть познакомимся, а то как два гуся! Регайся скорее и продолжим лялякать гг" });
+      return res.json({
+        reply: "Слушай, а чё мы как не родные-то? Зарегайся пыренько — там реально 5 сек! Давай познакомимся поближе, а то как два гуся 🪿🪿!"
+      });
     }
 
-    await supabase.from("users").update({ message_count: user.message_count + 1 }).eq("email", userEmail);
+    // 4️⃣ Увеличиваем счётчик сообщений
+    await supabase
+      .from("users")
+      .update({ message_count: user.message_count + 1 })
+      .eq("email", userEmail);
 
+    // 5️⃣ Отправляем запрос в OpenAI
     const completion = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
@@ -115,6 +138,7 @@ else if (user.email === "guest") limit = LIMITS.guest;
     const reply = completion.data.choices[0].message.content;
     console.log("✅ [CHAT] OpenAI ответ:", reply);
     res.json({ reply });
+
   } catch (e) {
     console.error("❌ Ошибка в /chat:", e.response?.data || e);
     res.status(500).json({ error: "Ошибка чата" });
