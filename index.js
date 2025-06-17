@@ -87,10 +87,10 @@ app.post("/chat", async (req, res) => {
       user = newUser;
     }
 
-    let limit = LIMITS.registered;
-    if (user.is_premium) limit = LIMITS.premium;
-    else if (user.is_basic) limit = LIMITS.basic;
-    else if (user.email === "guest") limit = LIMITS.guest;
+  let limit = LIMITS.user;
+if (user.plan === "whisky") limit = LIMITS.whisky;
+else if (user.plan === "beer") limit = LIMITS.beer;
+else if (user.email === "guest") limit = LIMITS.guest;
 
     if (user.message_count >= limit) {
       return res.json({ reply: "Слушай, а чё мы как не родные то? Зарегайся пыренько — там рели 5 сек. Хоть познакомимся, а то как два гуся! Регайся скорее и продолжим лялякать гг" });
