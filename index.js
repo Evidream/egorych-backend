@@ -86,6 +86,59 @@ app.post("/login", async (req, res) => {
   }
 });
 
+// === УНИВЕРСАЛЬНЫЙ UPGRADE ===
+app.post("/upgrade", async (req, res) => {
+  const { email, plan } = req.body;
+
+  if (!email || !plan) {
+    return res.status(400).json({ error: "Нужны email и план" });
+  }
+
+  // Определи параметры для каждого плана
+  let messageCount = 0;
+  let subscriptionExpires = null;
+
+  switch (plan) {
+    case "user":
+      messageCount = 50;
+      break;
+    case "beer":
+      messageCount = 500;
+      subscriptionExpires = new Date();
+      subscriptionExpires.setMonth(subscriptionExpires.getMonth() + 1); // 1 месяц вперёд
+      break;
+    case "whisky":
+      messageCount = 99999;
+      subscriptionExpires = new Date();
+      subscriptionExpires.setFullYear(subscriptionExpires.getFullYear() + 1); // 1 год вперёд
+      break;
+    default:
+      messageCount = 20; // fallback на guest
+  }
+
+  try {
+    // Обновляем юзера по email
+    const { data, error } = await supabase
+      .from("users")
+      .update({
+        plan: plan,
+        message_count: messageCount,
+        subscription_expires: subscriptionExpires ? subscriptionExpires.toISOString() : null
+      })
+      .eq("email", email);
+
+    if (error) {
+      console.error("❌ Ошибка апгрейда:", error);
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({ message: `План обновлён на ${plan}`, data });
+  } catch (e) {
+    console.error("❌ Ошибка апгрейда:", e);
+    res.status(500).json({ error: "Ошибка апгрейда" });
+  }
+});
+
 // === CHAT ===
 app.post("/chat", async (req, res) => {
   const { text, email } = req.body;
