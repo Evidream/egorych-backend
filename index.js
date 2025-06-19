@@ -53,17 +53,20 @@ app.post("/register", async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("users")
-      .insert([
-        {
-          email: email,
-          plan: "guest", // или "free" — как решишь
-          created_at: new Date().toISOString(),
-          message_count: 20,
-        },
-      ]);
+      .upsert(
+        [
+          {
+            email: email,
+            plan: "guest",
+            created_at: new Date().toISOString(),
+            message_count: 20,
+          },
+        ],
+        { onConflict: 'email' } // 🧙‍♂️ магия: если есть — не вставляет заново
+      );
 
     if (error) return res.status(400).json({ error: error.message });
-    res.json({ message: "Регистрация успешна", data });
+    res.json({ message: "Регистрация успешна или обновлена", data });
   } catch (e) {
     console.error("❌ Ошибка регистрации:", e);
     res.status(500).json({ error: "Ошибка регистрации" });
