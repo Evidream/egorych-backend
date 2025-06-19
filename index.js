@@ -142,38 +142,50 @@ app.post("/upgrade", async (req, res) => {
   }
 });
 
-// === CHAT (фИНАЛ FIX) ===
+// === CHAT (ФИНАЛ FIX CLEAN) ===
 app.post("/chat", async (req, res) => {
   const { text, email } = req.body;
 
-  // 1️⃣ Чётко определяем email
-  const userEmail = email && email !== "" ? email : "guest";
-  console.log("👉 [CHAT] text:", text, "email:", userEmail);
+  // 1️⃣ Определяем email чётко
+  const userEmail = email && email.trim() !== "" ? email : null;
+  console.log("👉 [CHAT] text:", text, "email:", userEmail || "guest");
 
   try {
-    // 2️⃣ Ищем юзера
-    let { data: user, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("email", userEmail)
-      .single();
+    let user = null;
 
-    // 3️⃣ Если не нашли — создаём guest
-    if (error || !user) {
-      const { data: newUser } = await supabase
+    if (userEmail) {
+      // 2️⃣ Есть email → юзер должен быть в базе!
+      let { data, error } = await supabase
         .from("users")
-        .insert({
-          email: userEmail,
-          plan: userEmail === "guest" ? "guest" : "user",
-          message_count: 0,
-        })
-        .select()
+        .select("*")
+        .eq("email", userEmail)
         .single();
-      user = newUser;
+
+      if (error || !data) {
+        // fallback safety: создаём с plan:user
+        const { data: newUser } = await supabase
+          .from("users")
+          .insert({
+            email: userEmail,
+            plan: "user",
+            message_count: 0,
+          })
+          .select()
+          .single();
+        user = newUser;
+      } else {
+        user = data;
+      }
+    } else {
+      // 3️⃣ Нет email → полностью локальный guest (НЕ сохраняем в Supabase!)
+      user = {
+        plan: "guest",
+        message_count: req.body.localCount || 0 // если хочешь — можешь пробросить с фронта
+      };
     }
 
-    // 4️⃣ Определяем лимит по плану
-    let limit = LIMITS.user; // по умолчанию user
+    // 4️⃣ Определяем лимит
+    let limit = LIMITS.user;
     if (user.plan === "guest") limit = LIMITS.guest;
     else if (user.plan === "beer") limit = LIMITS.beer;
     else if (user.plan === "whisky") limit = LIMITS.whisky;
@@ -187,13 +199,17 @@ app.post("/chat", async (req, res) => {
       });
     }
 
-    // 6️⃣ Увеличиваем счётчик
-    await supabase
-      .from("users")
-      .update({ message_count: user.message_count + 1 })
-      .eq("email", userEmail);
+    // 6️⃣ Если есть email → обновляем счётчик в Supabase
+    if (userEmail) {
+      await supabase
+        .from("users")
+        .update({ message_count: user.message_count + 1 })
+        .eq("email", userEmail);
+    } else {
+      // Нет email → счётчик локально на фронт
+    }
 
-    // 7️⃣ Отправляем в OpenAI
+    // 7️⃣ Запрос в OpenAI
     const completion = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
@@ -210,7 +226,12 @@ app.post("/chat", async (req, res) => {
 
     const reply = completion.data.choices[0].message.content;
     console.log("✅ [CHAT] OpenAI ответ:", reply);
-    res.json({ reply });
+
+    // Если guest → вернём обновлённый localCount
+    res.json({
+      reply,
+      localCount: userEmail ? undefined : user.message_count + 1
+    });
 
   } catch (e) {
     console.error("❌ Ошибка в /chat:", e.response?.data || e);
