@@ -145,51 +145,59 @@ app.post("/upgrade", async (req, res) => {
 // === CHAT ===
 app.post("/chat", async (req, res) => {
   const { text, email } = req.body;
-  const userEmail = email || "guest";
+
+  // 1️⃣ Безопасный fallback: если email нет, но есть гость — попробуем вытянуть по IP или другому признаку (сейчас просто fallback)
+  let userEmail = email;
+  if (!userEmail || userEmail === "") {
+    userEmail = "guest";
+  }
 
   console.log("👉 [CHAT] text:", text, "email:", userEmail);
 
   try {
-    // 1️⃣ Проверяем юзера или создаём нового
+    // 2️⃣ Найдём юзера (если вдруг email пустой, найдётся guest)
     let { data: user, error } = await supabase
       .from("users")
       .select("*")
       .eq("email", userEmail)
       .single();
 
+    // 3️⃣ Если не нашли — создаём нового
     if (error || !user) {
       const { data: newUser } = await supabase
         .from("users")
         .insert({
           email: userEmail,
-          plan: "guest", // ✅ Гарантия: новый = guest
-          message_count: 0
+          plan: "guest",
+          message_count: 0,
         })
         .select()
         .single();
       user = newUser;
     }
 
-    // 2️⃣ Определяем лимит по plan
-    let limit = LIMITS.user; // по умолчанию user
+    // 4️⃣ Определяем лимит
+    let limit = LIMITS.user; // по дефолту user
     if (user.plan === "whisky") limit = LIMITS.whisky;
     else if (user.plan === "beer") limit = LIMITS.beer;
     else if (user.plan === "guest") limit = LIMITS.guest;
 
-    // 3️⃣ Если лимит исчерпан — стоп чат и предлагаем регистрацию
+    console.log(`👉 [CHAT] plan: ${user.plan}, limit: ${limit}, message_count: ${user.message_count}`);
+
+    // 5️⃣ Если исчерпан — стоп
     if (user.message_count >= limit) {
       return res.json({
-        reply: "Слушай, а чё мы как не родные то? Видишь справа вверху чёрную кнопку? Жми на неё и зарегайся пыренько — там рели 5 сек. Хоть познакомимся нормально, а то как два гуся! Регайся скорее и продолжим лялякать. Жду тебя — а пока сбегаю в толчок как раз."
+        reply: "Слушай, а чё мы как не родные? Видишь вверху чёрную кнопку? Жми и зарегайся пыренько — там реально 5 сек. А я пока сбегаю в толчок 😆"
       });
     }
 
-    // 4️⃣ Увеличиваем счётчик сообщений
+    // 6️⃣ Увеличиваем счётчик
     await supabase
       .from("users")
       .update({ message_count: user.message_count + 1 })
       .eq("email", userEmail);
 
-    // 5️⃣ Отправляем запрос в OpenAI
+    // 7️⃣ Отправляем в OpenAI
     const completion = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
