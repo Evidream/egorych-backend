@@ -49,9 +49,19 @@ const LIMITS = {
 
 // === REGISTER ===
 app.post("/register", async (req, res) => {
-  const { email, password } = req.body;
+  const { email } = req.body;
   try {
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase
+      .from("users")
+      .insert([
+        {
+          email: email,
+          plan: "guest", // или "free" — как решишь
+          created_at: new Date().toISOString(),
+          message_count: 20,
+        },
+      ]);
+
     if (error) return res.status(400).json({ error: error.message });
     res.json({ message: "Регистрация успешна", data });
   } catch (e) {
