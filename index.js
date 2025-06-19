@@ -142,33 +142,29 @@ app.post("/upgrade", async (req, res) => {
   }
 });
 
-// === CHAT ===
+// === CHAT (фИНАЛ FIX) ===
 app.post("/chat", async (req, res) => {
   const { text, email } = req.body;
 
-  // 1️⃣ Безопасный fallback: если email нет, но есть гость — попробуем вытянуть по IP или другому признаку (сейчас просто fallback)
-  let userEmail = email;
-  if (!userEmail || userEmail === "") {
-    userEmail = "guest";
-  }
-
+  // 1️⃣ Чётко определяем email
+  const userEmail = email && email !== "" ? email : "guest";
   console.log("👉 [CHAT] text:", text, "email:", userEmail);
 
   try {
-    // 2️⃣ Найдём юзера (если вдруг email пустой, найдётся guest)
+    // 2️⃣ Ищем юзера
     let { data: user, error } = await supabase
       .from("users")
       .select("*")
       .eq("email", userEmail)
       .single();
 
-    // 3️⃣ Если не нашли — создаём нового
+    // 3️⃣ Если не нашли — создаём guest
     if (error || !user) {
       const { data: newUser } = await supabase
         .from("users")
         .insert({
           email: userEmail,
-          plan: "guest",
+          plan: userEmail === "guest" ? "guest" : "user",
           message_count: 0,
         })
         .select()
@@ -176,15 +172,15 @@ app.post("/chat", async (req, res) => {
       user = newUser;
     }
 
-    // 4️⃣ Определяем лимит
-    let limit = LIMITS.user; // по дефолту user
-    if (user.plan === "whisky") limit = LIMITS.whisky;
+    // 4️⃣ Определяем лимит по плану
+    let limit = LIMITS.user; // по умолчанию user
+    if (user.plan === "guest") limit = LIMITS.guest;
     else if (user.plan === "beer") limit = LIMITS.beer;
-    else if (user.plan === "guest") limit = LIMITS.guest;
+    else if (user.plan === "whisky") limit = LIMITS.whisky;
 
     console.log(`👉 [CHAT] plan: ${user.plan}, limit: ${limit}, message_count: ${user.message_count}`);
 
-    // 5️⃣ Если исчерпан — стоп
+    // 5️⃣ Проверка лимита
     if (user.message_count >= limit) {
       return res.json({
         reply: "Слушай, а чё мы как не родные? Видишь вверху чёрную кнопку? Жми и зарегайся пыренько — там реально 5 сек. А я пока сбегаю в толчок 😆"
