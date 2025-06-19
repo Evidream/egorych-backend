@@ -51,22 +51,25 @@ const LIMITS = {
 app.post("/register", async (req, res) => {
   const { email } = req.body;
   try {
+    // 1️⃣ Если пользователь есть — апдейтим план и сбрасываем счётчик
+    // 2️⃣ Если нет — создаём с планом user и счётчиком 0
     const { data, error } = await supabase
       .from("users")
       .upsert(
         [
           {
             email: email,
-            plan: "guest",
+            plan: "user", // 👈 теперь сразу plan: user
             created_at: new Date().toISOString(),
-            message_count: 20,
+            message_count: 0, // 👈 сбрасываем/ставим новый
           },
         ],
-        { onConflict: 'email' } // 🧙‍♂️ магия: если есть — не вставляет заново
+        { onConflict: 'email' }
       );
 
     if (error) return res.status(400).json({ error: error.message });
     res.json({ message: "Регистрация успешна или обновлена", data });
+
   } catch (e) {
     console.error("❌ Ошибка регистрации:", e);
     res.status(500).json({ error: "Ошибка регистрации" });
@@ -94,35 +97,35 @@ app.post("/upgrade", async (req, res) => {
     return res.status(400).json({ error: "Нужны email и план" });
   }
 
-  // Определи параметры для каждого плана
+  // 🔑 Задаём лимит и срок в зависимости от плана
   let messageCount = 0;
   let subscriptionExpires = null;
 
   switch (plan) {
     case "user":
-      messageCount = 50;
+      messageCount = 50; // при апгрейде с guest на user
       break;
     case "beer":
       messageCount = 500;
       subscriptionExpires = new Date();
-      subscriptionExpires.setMonth(subscriptionExpires.getMonth() + 1); // 1 месяц вперёд
+      subscriptionExpires.setMonth(subscriptionExpires.getMonth() + 1); // +1 месяц
       break;
     case "whisky":
       messageCount = 99999;
       subscriptionExpires = new Date();
-      subscriptionExpires.setFullYear(subscriptionExpires.getFullYear() + 1); // 1 год вперёд
+      subscriptionExpires.setFullYear(subscriptionExpires.getMonth() + 1); // +1 месяц
       break;
     default:
-      messageCount = 20; // fallback на guest
+      messageCount = 20; // fallback → guest
   }
 
   try {
-    // Обновляем юзера по email
+    // ✅ Обновляем план и лимиты
     const { data, error } = await supabase
       .from("users")
       .update({
         plan: plan,
-        message_count: messageCount,
+        message_count: messageCount, 
         subscription_expires: subscriptionExpires ? subscriptionExpires.toISOString() : null
       })
       .eq("email", email);
