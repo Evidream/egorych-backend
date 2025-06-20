@@ -331,47 +331,29 @@ app.post("/api/create-payment", async (req, res) => {
   const { amount } = req.body;
 
   const TERMINAL_KEY = process.env.TINKOFF_TERMINAL_KEY;
-  const PASSWORD = process.env.TINKOFF_TERMINAL_PASSWORD; // это твой SecretKey!
+  const PASSWORD = process.env.TINKOFF_TERMINAL_PASSWORD;
   const ORDER_ID = Date.now().toString();
   const DESCRIPTION = "Оплата Egorych";
+  const SUCCESS_URL = process.env.TINKOFF_SUCCESS_URL;
+  const FAIL_URL = process.env.TINKOFF_FAIL_URL;
 
-  // ✅ Правильный расчёт токена
-  const params = {
-    Amount: amount,
-    Description: DESCRIPTION,
-    OrderId: ORDER_ID,
-    TerminalKey: TERMINAL_KEY
-  };
+  // ✅ Новый правильный порядок!
+  const stringToHash = 
+    `${amount}${DESCRIPTION}${FAIL_URL}${ORDER_ID}${PASSWORD}${SUCCESS_URL}${TERMINAL_KEY}`;
 
-  // Сортируем ключи
-  const sortedKeys = Object.keys(params).sort();
-
-  // Формируем строку для хеширования
-  let stringToHash = '';
-  sortedKeys.forEach(key => {
-    stringToHash += `${key}=${params[key]}`;
-  });
-  stringToHash += PASSWORD;
-
-  // Хешируем
   const token = crypto.createHash('sha256').update(stringToHash).digest('hex');
-
-  // ✅ Лог запроса для саппорта!
-  console.log("✅ [TINKOFF] Init request JSON:", {
-    ...params,
-    Token: token,
-    SuccessURL: process.env.TINKOFF_SUCCESS_URL,
-    FailURL: process.env.TINKOFF_FAIL_URL
-  });
 
   try {
     const response = await axios.post(
       "https://securepay.tinkoff.ru/v2/Init",
       {
-        ...params,
+        TerminalKey: TERMINAL_KEY,
+        Amount: amount,
+        OrderId: ORDER_ID,
+        Description: DESCRIPTION,
         Token: token,
-        SuccessURL: process.env.TINKOFF_SUCCESS_URL,
-        FailURL: process.env.TINKOFF_FAIL_URL
+        SuccessURL: SUCCESS_URL,
+        FailURL: FAIL_URL
       },
       {
         headers: { "Content-Type": "application/json" }
@@ -389,6 +371,7 @@ app.post("/api/create-payment", async (req, res) => {
     res.status(500).json({ error: "Ошибка создания платежа" });
   }
 });
+
 // === START ===
 app.listen(port, () => {
   console.log(`✅ Egorych backend запущен на порту ${port}`);
