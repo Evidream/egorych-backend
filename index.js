@@ -335,7 +335,7 @@ app.post("/api/create-payment", async (req, res) => {
   const ORDER_ID = Date.now().toString();
   const DESCRIPTION = "Оплата Egorych";
 
-  // ✅ Правильный расчёт токена — только так!
+  // ✅ Правильный расчёт токена
   const params = {
     Amount: amount,
     Description: DESCRIPTION,
@@ -343,20 +343,26 @@ app.post("/api/create-payment", async (req, res) => {
     TerminalKey: TERMINAL_KEY
   };
 
-  // 1️⃣ Сортируем ключи по алфавиту
+  // Сортируем ключи
   const sortedKeys = Object.keys(params).sort();
 
-  // 2️⃣ Формируем строку key=valuekey=value...
+  // Формируем строку для хеширования
   let stringToHash = '';
   sortedKeys.forEach(key => {
     stringToHash += `${key}=${params[key]}`;
   });
-
-  // 3️⃣ Прибавляем SecretKey
   stringToHash += PASSWORD;
 
-  // 4️⃣ Хешируем
+  // Хешируем
   const token = crypto.createHash('sha256').update(stringToHash).digest('hex');
+
+  // ✅ Лог запроса для саппорта!
+  console.log("✅ [TINKOFF] Init request JSON:", {
+    ...params,
+    Token: token,
+    SuccessURL: process.env.TINKOFF_SUCCESS_URL,
+    FailURL: process.env.TINKOFF_FAIL_URL
+  });
 
   try {
     const response = await axios.post(
@@ -383,7 +389,6 @@ app.post("/api/create-payment", async (req, res) => {
     res.status(500).json({ error: "Ошибка создания платежа" });
   }
 });
-
 // === START ===
 app.listen(port, () => {
   console.log(`✅ Egorych backend запущен на порту ${port}`);
