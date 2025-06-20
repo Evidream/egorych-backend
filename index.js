@@ -331,11 +331,12 @@ app.post("/api/create-payment", async (req, res) => {
   const { amount } = req.body;
 
   const TERMINAL_KEY = process.env.TINKOFF_TERMINAL_KEY;
-  const PASSWORD = process.env.TINKOFF_TERMINAL_PASSWORD;
+  const PASSWORD = process.env.TINKOFF_TERMINAL_PASSWORD; // это твой SecretKey!
   const ORDER_ID = Date.now().toString();
+  const DESCRIPTION = "Оплата Egorych";
 
-  // Генерим Token
-  const stringToHash = `Amount=${amount}OrderId=${ORDER_ID}Password=${PASSWORD}TerminalKey=${TERMINAL_KEY}`;
+  // Формируем строку для подписи ровно по инструкции
+  const stringToHash = `Amount=${amount}Description=${DESCRIPTION}OrderId=${ORDER_ID}Password=${PASSWORD}TerminalKey=${TERMINAL_KEY}`;
   const token = crypto.createHash('sha256').update(stringToHash).digest('hex');
 
   try {
@@ -345,10 +346,10 @@ app.post("/api/create-payment", async (req, res) => {
         TerminalKey: TERMINAL_KEY,
         Amount: amount,
         OrderId: ORDER_ID,
-        Description: "Оплата подписки Egorych",
+        Description: DESCRIPTION,
+        Token: token,
         SuccessURL: process.env.TINKOFF_SUCCESS_URL,
-        FailURL: process.env.TINKOFF_FAIL_URL,
-        Token: token
+        FailURL: process.env.TINKOFF_FAIL_URL
       },
       {
         headers: { "Content-Type": "application/json" }
