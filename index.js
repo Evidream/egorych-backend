@@ -325,22 +325,30 @@ app.post("/webhook", async (req, res) => {
 });
 
 // === TINKOFF CREATE PAYMENT ===
+const crypto = require("crypto");
+
 app.post("/api/create-payment", async (req, res) => {
   const { amount } = req.body;
 
   const TERMINAL_KEY = process.env.TINKOFF_TERMINAL_KEY;
   const PASSWORD = process.env.TINKOFF_TERMINAL_PASSWORD;
+  const ORDER_ID = Date.now().toString();
+
+  // Генерим Token
+  const stringToHash = `Amount=${amount}OrderId=${ORDER_ID}Password=${PASSWORD}TerminalKey=${TERMINAL_KEY}`;
+  const token = crypto.createHash('sha256').update(stringToHash).digest('hex');
 
   try {
     const response = await axios.post(
       "https://securepay.tinkoff.ru/v2/Init",
       {
         TerminalKey: TERMINAL_KEY,
-        Amount: amount, // в копейках
-        OrderId: Date.now().toString(),
+        Amount: amount,
+        OrderId: ORDER_ID,
         Description: "Оплата подписки Egorych",
         SuccessURL: process.env.TINKOFF_SUCCESS_URL,
-        FailURL: process.env.TINKOFF_FAIL_URL
+        FailURL: process.env.TINKOFF_FAIL_URL,
+        Token: token
       },
       {
         headers: { "Content-Type": "application/json" }
