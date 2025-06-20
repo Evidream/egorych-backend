@@ -335,18 +335,34 @@ app.post("/api/create-payment", async (req, res) => {
   const ORDER_ID = Date.now().toString();
   const DESCRIPTION = "Оплата Egorych";
 
-  // Формируем строку для подписи ровно по инструкции
-  const stringToHash = `Amount=${amount}Description=${DESCRIPTION}OrderId=${ORDER_ID}Password=${PASSWORD}TerminalKey=${TERMINAL_KEY}`;
+  // ✅ Правильный расчёт токена — только так!
+  const params = {
+    Amount: amount,
+    Description: DESCRIPTION,
+    OrderId: ORDER_ID,
+    TerminalKey: TERMINAL_KEY
+  };
+
+  // 1️⃣ Сортируем ключи по алфавиту
+  const sortedKeys = Object.keys(params).sort();
+
+  // 2️⃣ Формируем строку key=valuekey=value...
+  let stringToHash = '';
+  sortedKeys.forEach(key => {
+    stringToHash += `${key}=${params[key]}`;
+  });
+
+  // 3️⃣ Прибавляем SecretKey
+  stringToHash += PASSWORD;
+
+  // 4️⃣ Хешируем
   const token = crypto.createHash('sha256').update(stringToHash).digest('hex');
 
   try {
     const response = await axios.post(
       "https://securepay.tinkoff.ru/v2/Init",
       {
-        TerminalKey: TERMINAL_KEY,
-        Amount: amount,
-        OrderId: ORDER_ID,
-        Description: DESCRIPTION,
+        ...params,
         Token: token,
         SuccessURL: process.env.TINKOFF_SUCCESS_URL,
         FailURL: process.env.TINKOFF_FAIL_URL
