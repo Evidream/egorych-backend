@@ -324,6 +324,41 @@ app.post("/webhook", async (req, res) => {
   res.sendStatus(200);
 });
 
+// === TINKOFF CREATE PAYMENT ===
+app.post("/api/create-payment", async (req, res) => {
+  const { amount } = req.body;
+
+  const TERMINAL_KEY = process.env.TINKOFF_TERMINAL_KEY;
+  const PASSWORD = process.env.TINKOFF_TERMINAL_PASSWORD;
+
+  try {
+    const response = await axios.post(
+      "https://securepay.tinkoff.ru/v2/Init",
+      {
+        TerminalKey: TERMINAL_KEY,
+        Amount: amount, // в копейках
+        OrderId: Date.now().toString(),
+        Description: "Оплата подписки Egorych",
+        SuccessURL: process.env.TINKOFF_SUCCESS_URL,
+        FailURL: process.env.TINKOFF_FAIL_URL
+      },
+      {
+        headers: { "Content-Type": "application/json" }
+      }
+    );
+
+    console.log("✅ [TINKOFF] Init response:", response.data);
+
+    res.json({
+      PaymentURL: response.data.PaymentURL
+    });
+
+  } catch (error) {
+    console.error("❌ [TINKOFF] Ошибка:", error.response?.data || error);
+    res.status(500).json({ error: "Ошибка создания платежа" });
+  }
+});
+
 // === START ===
 app.listen(port, () => {
   console.log(`✅ Egorych backend запущен на порту ${port}`);
