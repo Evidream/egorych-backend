@@ -21,8 +21,11 @@ const app = express();
 const port = process.env.PORT || 8080;
 
 app.use(cors({
-  origin: ['https://egorych.ai'],
-  credentials: true
+  origin: [
+    'https://egorych.ai',
+    'https://egorych-front.vercel.app',
+    'http://localhost:3000'
+  ]
 }));
 app.use(bodyParser.json({ limit: "10mb" }));
 
