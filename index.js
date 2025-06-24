@@ -7,9 +7,10 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const { createClient } = require("@supabase/supabase-js");
+const crypto = require("crypto");
 
 // === CONFIG ===
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY; // ✅ Только из Variables
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const ELEVENLABS_API_KEY = "sk_6e008ec729f7b3112e0933e829d0e761822d6a1a7af51386";
 const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID;
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -57,17 +58,15 @@ const LIMITS = {
 app.post("/register", async (req, res) => {
   const { email } = req.body;
   try {
-    // 1️⃣ Если пользователь есть — апдейтим план и сбрасываем счётчик
-    // 2️⃣ Если нет — создаём с планом user и счётчиком 0
     const { data, error } = await supabase
       .from("users")
       .upsert(
         [
           {
             email: email,
-            plan: "user", // 👈 теперь сразу plan: user
+            plan: "user",
             created_at: new Date().toISOString(),
-            message_count: 0, // 👈 сбрасываем/ставим новый
+            message_count: 0,
           },
         ],
         { onConflict: 'email' }
@@ -95,7 +94,7 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// === УНИВЕРСАЛЬНЫЙ UPGRADE ===
+// === UPGRADE ===
 app.post("/upgrade", async (req, res) => {
   const { email, plan } = req.body;
 
@@ -103,35 +102,33 @@ app.post("/upgrade", async (req, res) => {
     return res.status(400).json({ error: "Нужны email и план" });
   }
 
-  // 🔑 Задаём лимит и срок в зависимости от плана
   let messageCount = 0;
   let subscriptionExpires = null;
 
   switch (plan) {
     case "user":
-      messageCount = 50; // при апгрейде с guest на user
+      messageCount = 50;
       break;
     case "beer":
       messageCount = 500;
       subscriptionExpires = new Date();
-      subscriptionExpires.setMonth(subscriptionExpires.getMonth() + 1); // +1 месяц
+      subscriptionExpires.setMonth(subscriptionExpires.getMonth() + 1);
       break;
     case "whisky":
       messageCount = 99999;
       subscriptionExpires = new Date();
-      subscriptionExpires.setFullYear(subscriptionExpires.getMonth() + 1); // +1 месяц
+      subscriptionExpires.setMonth(subscriptionExpires.getMonth() + 1);
       break;
     default:
-      messageCount = 20; // fallback → guest
+      messageCount = 20;
   }
 
   try {
-    // ✅ Обновляем план и лимиты
     const { data, error } = await supabase
       .from("users")
       .update({
         plan: plan,
-        message_count: messageCount, 
+        message_count: messageCount,
         subscription_expires: subscriptionExpires ? subscriptionExpires.toISOString() : null
       })
       .eq("email", email);
@@ -148,74 +145,56 @@ app.post("/upgrade", async (req, res) => {
   }
 });
 
-// === CHAT (ФИНАЛ FIX CLEAN) ===
+// === CHAT ===
 app.post("/chat", async (req, res) => {
   const { text, email } = req.body;
-
-  // 1️⃣ Определяем email чётко
   const userEmail = email && email.trim() !== "" ? email : null;
-  console.log("👉 [CHAT] text:", text, "email:", userEmail || "guest");
+  console.log("👉 [CHAT] text:", text, "| email:", userEmail || "guest");
 
   try {
     let user = null;
+    let limit = LIMITS.guest;
 
     if (userEmail) {
-      // 2️⃣ Есть email → юзер должен быть в базе!
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from("users")
         .select("*")
         .eq("email", userEmail)
         .single();
 
       if (error || !data) {
-        // fallback safety: создаём с plan:user
         const { data: newUser } = await supabase
           .from("users")
-          .insert({
-            email: userEmail,
-            plan: "user",
-            message_count: 0,
-          })
+          .insert({ email: userEmail, plan: "user", message_count: 0 })
           .select()
           .single();
         user = newUser;
       } else {
         user = data;
       }
-    } else {
-      // 3️⃣ Нет email → полностью локальный guest (НЕ сохраняем в Supabase!)
-      user = {
-        plan: "guest",
-        message_count: req.body.localCount || 0 // если хочешь — можешь пробросить с фронта
-      };
-    }
 
-    // 4️⃣ Определяем лимит
-    let limit = LIMITS.user;
-    if (user.plan === "guest") limit = LIMITS.guest;
-    else if (user.plan === "beer") limit = LIMITS.beer;
-    else if (user.plan === "whisky") limit = LIMITS.whisky;
+      if (user.plan === "user") limit = LIMITS.user;
+      else if (user.plan === "beer") limit = LIMITS.beer;
+      else if (user.plan === "whisky") limit = LIMITS.whisky;
+      else limit = LIMITS.user;
 
-    console.log(`👉 [CHAT] plan: ${user.plan}, limit: ${limit}, message_count: ${user.message_count}`);
+      console.log(`✅ [CHAT] plan: ${user.plan}, limit: ${limit}, used: ${user.message_count}`);
 
-    // 5️⃣ Проверка лимита
-    if (user.message_count >= limit) {
-      return res.json({
-        reply: "Слушай, а чё мы как не родные? Видишь вверху чёрную кнопку? Жми и зарегайся пыренько — там реально 5 сек. А я пока сбегаю в толчок 😆"
-      });
-    }
+      if (user.message_count >= limit) {
+        return res.json({
+          reply: "⛔ Родной, лимит исчерпан! Апгрейдни план и продолжим 🚀"
+        });
+      }
 
-    // 6️⃣ Если есть email → обновляем счётчик в Supabase
-    if (userEmail) {
       await supabase
         .from("users")
         .update({ message_count: user.message_count + 1 })
         .eq("email", userEmail);
+
     } else {
-      // Нет email → счётчик локально на фронт
+      console.log("✅ [CHAT] Guest — лимит фронтом, бэкенд не блочит.");
     }
 
-    // 7️⃣ Запрос в OpenAI
     const completion = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
@@ -233,11 +212,7 @@ app.post("/chat", async (req, res) => {
     const reply = completion.data.choices[0].message.content;
     console.log("✅ [CHAT] OpenAI ответ:", reply);
 
-    // Если guest → вернём обновлённый localCount
-    res.json({
-      reply,
-      localCount: userEmail ? undefined : user.message_count + 1
-    });
+    res.json({ reply });
 
   } catch (e) {
     console.error("❌ Ошибка в /chat:", e.response?.data || e);
@@ -265,7 +240,7 @@ app.post("/speak", async (req, res) => {
         },
       }
     );
-    console.log("✅ [SPEAK] Озвучка прошла успешно");
+    console.log("✅ [SPEAK] Озвучка успешна");
     res.set({ "Content-Type": "audio/mpeg" });
     res.send(result.data);
   } catch (e) {
@@ -277,7 +252,7 @@ app.post("/speak", async (req, res) => {
 // === VISION ===
 app.post("/vision", async (req, res) => {
   const { base64, prompt } = req.body;
-  console.log("👉 [VISION] Запрос vision получен");
+  console.log("👉 [VISION] Получен запрос");
   try {
     const result = await axios.post(
       "https://api.openai.com/v1/chat/completions",
@@ -330,12 +305,9 @@ app.post("/webhook", async (req, res) => {
   res.sendStatus(200);
 });
 
-// === TINKOFF CREATE PAYMENT ===
-const crypto = require("crypto");
-
+// === TINKOFF PAYMENT ===
 app.post("/api/create-payment", async (req, res) => {
   const { amount } = req.body;
-
   const TERMINAL_KEY = process.env.TINKOFF_TERMINAL_KEY;
   const PASSWORD = process.env.TINKOFF_TERMINAL_PASSWORD;
   const ORDER_ID = Date.now().toString();
@@ -343,10 +315,7 @@ app.post("/api/create-payment", async (req, res) => {
   const SUCCESS_URL = process.env.TINKOFF_SUCCESS_URL;
   const FAIL_URL = process.env.TINKOFF_FAIL_URL;
 
-  // ✅ Новый правильный порядок!
-  const stringToHash = 
-    `${amount}${DESCRIPTION}${FAIL_URL}${ORDER_ID}${PASSWORD}${SUCCESS_URL}${TERMINAL_KEY}`;
-
+  const stringToHash = `${amount}${DESCRIPTION}${FAIL_URL}${ORDER_ID}${PASSWORD}${SUCCESS_URL}${TERMINAL_KEY}`;
   const token = crypto.createHash('sha256').update(stringToHash).digest('hex');
 
   try {
@@ -361,16 +330,11 @@ app.post("/api/create-payment", async (req, res) => {
         SuccessURL: SUCCESS_URL,
         FailURL: FAIL_URL
       },
-      {
-        headers: { "Content-Type": "application/json" }
-      }
+      { headers: { "Content-Type": "application/json" } }
     );
 
-    console.log("✅ [TINKOFF] Init response:", response.data);
-
-    res.json({
-      PaymentURL: response.data.PaymentURL
-    });
+    console.log("✅ [TINKOFF] Init:", response.data);
+    res.json({ PaymentURL: response.data.PaymentURL });
 
   } catch (error) {
     console.error("❌ [TINKOFF] Ошибка:", error.response?.data || error);
