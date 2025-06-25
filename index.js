@@ -296,12 +296,40 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 // === WEBHOOK ===
 app.post("/webhook", async (req, res) => {
   const { Status, OrderId, Amount } = req.body;
+
   if (Status === "CONFIRMED") {
-    let update = { is_basic: true };
-    if (Amount >= 149900) update = { is_premium: true };
-    await supabase.from("users").update({ ...update }).eq("email", OrderId);
-    console.log(`✅ Подписка обновлена для ${OrderId}`);
+    let plan = "user"; // по умолчанию
+    let messageCount = 50;
+    let subscriptionExpires = null;
+
+    if (Amount >= 149900) {
+      plan = "whisky";
+      messageCount = 99999;
+      subscriptionExpires = new Date();
+      subscriptionExpires.setMonth(subscriptionExpires.getMonth() + 1);
+    } else if (Amount >= 49000) {
+      plan = "beer";
+      messageCount = 500;
+      subscriptionExpires = new Date();
+      subscriptionExpires.setMonth(subscriptionExpires.getMonth() + 1);
+    }
+
+    try {
+      await supabase
+        .from("users")
+        .update({
+          plan,
+          message_count: messageCount,
+          subscription_expires: subscriptionExpires ? subscriptionExpires.toISOString() : null
+        })
+        .eq("email", OrderId);
+
+      console.log(`✅ Подписка обновлена для ${OrderId} — план: ${plan}`);
+    } catch (err) {
+      console.error("❌ Ошибка обновления подписки в Webhook:", err);
+    }
   }
+
   res.sendStatus(200);
 });
 
@@ -333,7 +361,7 @@ app.post("/api/create-payment", async (req, res) => {
       { headers: { "Content-Type": "application/json" } }
     );
 
-    console.log("✅ [TINKOFF] Init:", response.data);
+    console.log(`✅ [TINKOFF] Init успешен. Amount: ${amount}, OrderId (email): ${ORDER_ID}`);
     res.json({ PaymentURL: response.data.PaymentURL });
 
   } catch (error) {
