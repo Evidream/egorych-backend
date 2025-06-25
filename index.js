@@ -304,13 +304,13 @@ app.post("/webhook", async (req, res) => {
     let messageCount = 50;
     let subscriptionExpires = null;
 
-    if (Amount >= 149000) {
+    if (Amount >= 200) {
       plan = "whisky";
       messageCount = 99999;
-    } else if (Amount >= 100000) {
+    } else if (Amount >= 300) {
       plan = "whisky";
       messageCount = 99999;
-    } else if (Amount >= 49000) {
+    } else if (Amount > 100) {
       plan = "beer";
       messageCount = 500;
     }
