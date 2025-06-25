@@ -297,17 +297,17 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 app.post("/webhook", async (req, res) => {
   const { Status, OrderId, Amount } = req.body;
 
+  console.log("📩 Входящий Webhook:", { Status, OrderId, Amount });
+
   if (Status === "CONFIRMED") {
     let plan = "user"; // по умолчанию
     let messageCount = 50;
     let subscriptionExpires = null;
 
-    // Расширенная логика оплаты
     if (Amount >= 149000) {
       plan = "whisky";
       messageCount = 99999;
     } else if (Amount >= 100000) {
-      // Апгрейд с Пива до Виски
       plan = "whisky";
       messageCount = 99999;
     } else if (Amount >= 49000) {
@@ -321,16 +321,20 @@ app.post("/webhook", async (req, res) => {
     }
 
     try {
-      await supabase
-        .from("users")
-        .update({
-          plan,
-          message_count: messageCount,
-          subscription_expires: subscriptionExpires ? subscriptionExpires.toISOString() : null
-        })
-        .eq("email", OrderId);
+      if (OrderId) {
+        await supabase
+          .from("users")
+          .update({
+            plan,
+            message_count: messageCount,
+            subscription_expires: subscriptionExpires ? subscriptionExpires.toISOString() : null
+          })
+          .eq("email", OrderId);
 
-      console.log(`✅ Подписка обновлена для ${OrderId} — план: ${plan}`);
+        console.log(`✅ Подписка обновлена для ${OrderId} — план: ${plan}`);
+      } else {
+        console.warn("⚠️ Webhook без OrderId, обновление не выполнено");
+      }
     } catch (err) {
       console.error("❌ Ошибка обновления подписки в Webhook:", err);
     }
@@ -342,13 +346,14 @@ app.post("/webhook", async (req, res) => {
 // === TINKOFF PAYMENT ===
 app.post("/api/create-payment", async (req, res) => {
   const { amount } = req.body;
-
   const TERMINAL_KEY = process.env.TINKOFF_TERMINAL_KEY;
   const PASSWORD = process.env.TINKOFF_TERMINAL_PASSWORD;
   const ORDER_ID = req.headers["x-user-email"] || Date.now().toString(); // email, если есть
   const DESCRIPTION = "Оплата Egorych";
   const SUCCESS_URL = process.env.TINKOFF_SUCCESS_URL;
   const FAIL_URL = process.env.TINKOFF_FAIL_URL;
+
+  console.log("📤 Создаю платёж, email в OrderId:", ORDER_ID);
 
   const stringToHash = `${amount}${DESCRIPTION}${FAIL_URL}${ORDER_ID}${PASSWORD}${SUCCESS_URL}${TERMINAL_KEY}`;
   const token = crypto.createHash('sha256').update(stringToHash).digest('hex');
