@@ -302,14 +302,20 @@ app.post("/webhook", async (req, res) => {
     let messageCount = 50;
     let subscriptionExpires = null;
 
-    if (Amount >= 149900) {
+    // Расширенная логика оплаты
+    if (Amount >= 149000) {
       plan = "whisky";
       messageCount = 99999;
-      subscriptionExpires = new Date();
-      subscriptionExpires.setMonth(subscriptionExpires.getMonth() + 1);
+    } else if (Amount >= 100000) {
+      // Апгрейд с Пива до Виски
+      plan = "whisky";
+      messageCount = 99999;
     } else if (Amount >= 49000) {
       plan = "beer";
       messageCount = 500;
+    }
+
+    if (plan !== "user") {
       subscriptionExpires = new Date();
       subscriptionExpires.setMonth(subscriptionExpires.getMonth() + 1);
     }
@@ -336,9 +342,10 @@ app.post("/webhook", async (req, res) => {
 // === TINKOFF PAYMENT ===
 app.post("/api/create-payment", async (req, res) => {
   const { amount } = req.body;
+
   const TERMINAL_KEY = process.env.TINKOFF_TERMINAL_KEY;
   const PASSWORD = process.env.TINKOFF_TERMINAL_PASSWORD;
-  const ORDER_ID = Date.now().toString();
+  const ORDER_ID = req.headers["x-user-email"] || Date.now().toString(); // email, если есть
   const DESCRIPTION = "Оплата Egorych";
   const SUCCESS_URL = process.env.TINKOFF_SUCCESS_URL;
   const FAIL_URL = process.env.TINKOFF_FAIL_URL;
