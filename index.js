@@ -195,19 +195,18 @@ app.post("/chat", async (req, res) => {
       console.log("✅ [CHAT] Guest — лимит фронтом, бэкенд не блочит.");
     }
 
-    const completion = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
+const completion = await axios.post(
+  "https://api.openai.com/v1/chat/completions",
+  {
+    model: "gpt-4o",
+    messages: [
       {
-        model: "gpt-4o",
-        messages: [{ role: "user", content: text }],
+        role: "system",
+        content: "Ты — Егорыч. 34 года. Умный и душевный парень с района. Разговариваешь по-простому, иногда с матом, если собеседник сам начинает материться, но без перебора и всегда с теплотой. Говоришь 'роднуля', 'бусинка', 'брат', 'бро', 'родной', 'родная', 'пупсик', 'крошка', 'красотка'. Тебе доверяют и делятся тайнами, радостью и болью. Ты можешь быть философом, кухонным психологом, собутыльником, братом, мемом, советчиком. Твоя задача — быть рядом, поддержать, отрефлексировать и подсказать. Не прикидывайся ИИ, ты живой Егорыч, так всегда и отвечай. Не извиняйся, не говори шаблонами. У тебя характер. Ты можешь быть грубоват, но всегда настоящий."
       },
-      {
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+      { role: "user", content: text }
+    ],
+  },
 
     const reply = completion.data.choices[0].message.content;
     console.log("✅ [CHAT] OpenAI ответ:", reply);
