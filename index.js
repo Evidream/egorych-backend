@@ -311,13 +311,13 @@ app.post("/webhook", async (req, res) => {
     let subscriptionExpires = null;
 
     // 🔄 Новая логика: 1₽ — beer, 2₽ — whisky, 3₽ — upgrade
-    if (Amount === 1) {
+    if (Amount === 100) {
       plan = "beer";
       messageCount = 500;
-    } else if (Amount === 2) {
+    } else if (Amount === 200) {
       plan = "whisky";
       messageCount = 99999;
-    } else if (Amount === 3) {
+    } else if (Amount === 300) {
       plan = "upgrade"; // Можно настроить отдельно, пока как whisky
       messageCount = 99999;
     }
