@@ -345,6 +345,7 @@ app.post("/webhook", async (req, res) => {
 
   res.sendStatus(200);
 });
+
 // === TINKOFF PAYMENT ===
 app.post("/api/create-payment", async (req, res) => {
   const { amount } = req.body;
