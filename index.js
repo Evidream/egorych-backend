@@ -305,18 +305,22 @@ app.post("/webhook", async (req, res) => {
 
   console.log("📩 Входящий Webhook:", { Status, OrderId, Amount });
 
-if (Status === "CONFIRMED") {
-  let plan = "user"; // по умолчанию
-  let messageCount = 50;
-  let subscriptionExpires = null;
+  if (Status === "CONFIRMED") {
+    let plan = "user"; // по умолчанию
+    let messageCount = 50;
+    let subscriptionExpires = null;
 
-  if (Amount >= 1499) {
-    plan = "whisky";
-    messageCount = 99999;
-  } else if (Amount >= 499) {
-    plan = "beer";
-    messageCount = 500;
-  }
+    // 🔄 Новая логика: 1₽ — beer, 2₽ — whisky, 3₽ — upgrade
+    if (Amount === 1) {
+      plan = "beer";
+      messageCount = 500;
+    } else if (Amount === 2) {
+      plan = "whisky";
+      messageCount = 99999;
+    } else if (Amount === 3) {
+      plan = "upgrade"; // Можно настроить отдельно, пока как whisky
+      messageCount = 99999;
+    }
 
     if (plan !== "user") {
       subscriptionExpires = new Date();
@@ -330,7 +334,7 @@ if (Status === "CONFIRMED") {
           .update({
             plan,
             message_count: messageCount,
-            subscription_expires: subscriptionExpires ? subscriptionExpires.toISOString() : null
+            subscription_expires: subscriptionExpires ? subscriptionExpires.toISOString() : null,
           })
           .eq("email", OrderId); // ← т.к. email подсовывался как OrderId
 
