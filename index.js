@@ -310,13 +310,10 @@ app.post("/webhook", async (req, res) => {
     let messageCount = 50;
     let subscriptionExpires = null;
 
-    if (Amount >= 200) {
+    if (Amount >= 300) {
       plan = "whisky";
       messageCount = 99999;
-    } else if (Amount >= 300) {
-      plan = "whisky";
-      messageCount = 99999;
-    } else if (Amount > 100) {
+    } else if (Amount >= 200) {
       plan = "beer";
       messageCount = 500;
     }
@@ -335,7 +332,7 @@ app.post("/webhook", async (req, res) => {
             message_count: messageCount,
             subscription_expires: subscriptionExpires ? subscriptionExpires.toISOString() : null
           })
-          .eq("email", OrderId);
+          .eq("email", OrderId); // ← т.к. email подсовывался как OrderId
 
         console.log(`✅ Подписка обновлена для ${OrderId} — план: ${plan}`);
       } else {
@@ -348,7 +345,6 @@ app.post("/webhook", async (req, res) => {
 
   res.sendStatus(200);
 });
-
 // === TINKOFF PAYMENT ===
 app.post("/api/create-payment", async (req, res) => {
   const { amount } = req.body;
