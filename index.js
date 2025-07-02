@@ -305,18 +305,18 @@ app.post("/webhook", async (req, res) => {
 
   console.log("📩 Входящий Webhook:", { Status, OrderId, Amount });
 
-  if (Status === "CONFIRMED") {
-    let plan = "user"; // по умолчанию
-    let messageCount = 50;
-    let subscriptionExpires = null;
+if (Status === "CONFIRMED") {
+  let plan = "user"; // по умолчанию
+  let messageCount = 50;
+  let subscriptionExpires = null;
 
-    if (Amount >= 300) {
-      plan = "whisky";
-      messageCount = 99999;
-    } else if (Amount >= 200) {
-      plan = "beer";
-      messageCount = 500;
-    }
+  if (Amount >= 1499) {
+    plan = "whisky";
+    messageCount = 99999;
+  } else if (Amount >= 499) {
+    plan = "beer";
+    messageCount = 500;
+  }
 
     if (plan !== "user") {
       subscriptionExpires = new Date();
