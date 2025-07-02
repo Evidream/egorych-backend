@@ -388,3 +388,4 @@ app.post("/api/create-payment", async (req, res) => {
 app.listen(port, () => {
   console.log(`✅ Egorych backend запущен на порту ${port}`);
 });
+
