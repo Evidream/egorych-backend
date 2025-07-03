@@ -365,10 +365,10 @@ app.post("/webhook", async (req, res) => {
 
 // === TINKOFF PAYMENT ===
 app.post("/api/create-payment", async (req, res) => {
-  const { amount } = req.body;
+  const { amount, email } = req.body; // 🔧 добавили email из тела запроса
   const TERMINAL_KEY = process.env.TINKOFF_TERMINAL_KEY;
   const PASSWORD = process.env.TINKOFF_TERMINAL_PASSWORD;
-  const ORDER_ID = req.headers["x-user-email"] || Date.now().toString(); // email, если есть
+  const ORDER_ID = email || Date.now().toString(); // 🔧 используем email как OrderId
   const DESCRIPTION = "Оплата Egorych";
   const SUCCESS_URL = process.env.TINKOFF_SUCCESS_URL;
   const FAIL_URL = process.env.TINKOFF_FAIL_URL;
