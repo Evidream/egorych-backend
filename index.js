@@ -329,12 +329,12 @@ app.post("/webhook", async (req, res) => {
 
     try {
       if (OrderId) {
-        // 🔍 Показываем, что мы сейчас пытаемся обновить
         console.log("🛠 Обновляем Supabase:", {
           email: OrderId,
           plan,
           messageCount,
-          subscriptionExpires
+          subscriptionExpires,
+          order_id: OrderId // 👈 теперь пишем OrderId в колонку
         });
 
         const { data, error } = await supabase
@@ -343,6 +343,7 @@ app.post("/webhook", async (req, res) => {
             plan,
             message_count: messageCount,
             subscription_expires: subscriptionExpires ? subscriptionExpires.toISOString() : null,
+            order_id: OrderId // 💾 теперь сохраняем OrderId
           })
           .eq("email", OrderId); // ← email передаётся как OrderId
 
@@ -365,10 +366,16 @@ app.post("/webhook", async (req, res) => {
 
 // === TINKOFF PAYMENT ===
 app.post("/api/create-payment", async (req, res) => {
-  const { amount, email } = req.body; // 🔧 добавили email из тела запроса
+  const { amount, email } = req.body;
+
+  if (!email) {
+    console.error("❌ Email не передан в теле запроса");
+    return res.status(400).json({ error: "Email обязателен" });
+  }
+
   const TERMINAL_KEY = process.env.TINKOFF_TERMINAL_KEY;
   const PASSWORD = process.env.TINKOFF_TERMINAL_PASSWORD;
-  const ORDER_ID = email || Date.now().toString(); // 🔧 используем email как OrderId
+  const ORDER_ID = email; // ✅ используем email как OrderId
   const DESCRIPTION = "Оплата Egorych";
   const SUCCESS_URL = process.env.TINKOFF_SUCCESS_URL;
   const FAIL_URL = process.env.TINKOFF_FAIL_URL;
