@@ -451,6 +451,32 @@ app.post("/api/create-payment", async (req, res) => {
   }
 });
 
+// === USER INFO ===
+app.get("/user-info", async (req, res) => {
+  const { email } = req.query;
+
+  if (!email) {
+    return res.status(400).json({ error: "Email обязателен" });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select("plan, message_count")
+      .eq("email", email)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ error: "Пользователь не найден" });
+    }
+
+    res.json(data);
+  } catch (e) {
+    console.error("❌ Ошибка в /user-info:", e);
+    res.status(500).json({ error: "Ошибка на сервере" });
+  }
+});
+
 // === START ===
 app.listen(port, () => {
   console.log(`✅ Egorych backend запущен на порту ${port}`);
