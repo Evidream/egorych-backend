@@ -310,7 +310,7 @@ app.post("/webhook", async (req, res) => {
     let messageCount = 50;
     let subscriptionExpires = null;
 
-    // 🔄 Новая логика: 1₽ — beer, 2₽ — whisky, 3₽ — upgrade
+    // 🔄 Новая логика: 100₽ — beer, 200₽ — whisky, 300₽ — upgrade
     if (Amount === 100) {
       plan = "beer";
       messageCount = 500;
@@ -318,7 +318,7 @@ app.post("/webhook", async (req, res) => {
       plan = "whisky";
       messageCount = 99999;
     } else if (Amount === 300) {
-      plan = "upgrade"; // Можно настроить отдельно, пока как whisky
+      plan = "upgrade"; // Пока как whisky
       messageCount = 99999;
     }
 
@@ -329,16 +329,29 @@ app.post("/webhook", async (req, res) => {
 
     try {
       if (OrderId) {
-        await supabase
+        // 🔍 Показываем, что мы сейчас пытаемся обновить
+        console.log("🛠 Обновляем Supabase:", {
+          email: OrderId,
+          plan,
+          messageCount,
+          subscriptionExpires
+        });
+
+        const { data, error } = await supabase
           .from("users")
           .update({
             plan,
             message_count: messageCount,
             subscription_expires: subscriptionExpires ? subscriptionExpires.toISOString() : null,
           })
-          .eq("email", OrderId); // ← т.к. email подсовывался как OrderId
+          .eq("email", OrderId); // ← email передаётся как OrderId
 
-        console.log(`✅ Подписка обновлена для ${OrderId} — план: ${plan}`);
+        if (error) {
+          console.error("❌ Ошибка от Supabase:", error);
+        } else {
+          console.log(`✅ Подписка обновлена для ${OrderId} — план: ${plan}`);
+          console.log("📦 Ответ от Supabase:", data);
+        }
       } else {
         console.warn("⚠️ Webhook без OrderId, обновление не выполнено");
       }
