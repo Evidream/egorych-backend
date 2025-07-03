@@ -94,6 +94,48 @@ app.post("/login", async (req, res) => {
   }
 });
 
+// === DECREASE LIMIT ===
+app.post("/decrease", async (req, res) => {
+  const { email } = req.body;
+  console.log(`🧮 Пытаемся уменьшить лимит для: ${email}`);
+
+  if (!email) {
+    return res.status(400).json({ error: "Email обязателен" });
+  }
+
+  try {
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("message_count")
+      .eq("email", email)
+      .single();
+
+    if (error || !user) {
+      console.error("❌ Пользователь не найден в decrease:", error);
+      return res.status(404).json({ error: "Пользователь не найден" });
+    }
+
+    const updatedCount = Math.max(0, user.message_count - 1);
+
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({ message_count: updatedCount })
+      .eq("email", email);
+
+    if (updateError) {
+      console.error("❌ Ошибка при обновлении лимита:", updateError);
+      return res.status(500).json({ error: "Не удалось обновить лимит" });
+    }
+
+    console.log(`✅ Лимит уменьшен: ${user.message_count} → ${updatedCount}`);
+    res.json({ message: "Лимит уменьшен", message_count: updatedCount });
+
+  } catch (e) {
+    console.error("❌ Ошибка decrease:", e);
+    res.status(500).json({ error: "Ошибка уменьшения лимита" });
+  }
+});
+
 // === UPGRADE ===
 app.post("/upgrade", async (req, res) => {
   const { email, plan } = req.body;
