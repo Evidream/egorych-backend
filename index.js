@@ -477,6 +477,29 @@ app.get("/user-info", async (req, res) => {
   }
 });
 
+// === SESSION (для получения email по access_token) ===
+app.get("/session", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(" ")[1];
+
+    if (!token) {
+      return res.status(401).json({ error: "Нет токена" });
+    }
+
+    const { data, error } = await supabase.auth.getUser(token);
+
+    if (error || !data?.user) {
+      return res.status(401).json({ error: "Неавторизован" });
+    }
+
+    res.json({ email: data.user.email });
+  } catch (e) {
+    console.error("❌ Ошибка в /session:", e);
+    res.status(500).json({ error: "Ошибка при получении сессии" });
+  }
+});
+
 // === START ===
 app.listen(port, () => {
   console.log(`✅ Egorych backend запущен на порту ${port}`);
