@@ -388,6 +388,40 @@ app.post("/api/create-payment", async (req, res) => {
   }
 });
 
+// === DECREASE LIMIT ===
+app.post("/decrease", async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "Нет email" });
+
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .single();
+
+    if (error || !data) {
+      console.warn("⚠️ Пользователь не найден для decrease:", email);
+      return res.status(404).json({ error: "Пользователь не найден" });
+    }
+
+    const newCount = Math.max((data.message_count || 0) - 1, 0);
+
+    const { error: updateError } = await supabase
+      .from("users")
+      .update({ message_count: newCount })
+      .eq("email", email);
+
+    if (updateError) throw updateError;
+
+    console.log(`✅ [DECREASE] ${email} → ${newCount}`);
+    return res.status(200).json({ success: true, message_count: newCount });
+  } catch (err) {
+    console.error("❌ [DECREASE] Ошибка:", err);
+    return res.status(500).json({ error: "Внутренняя ошибка сервера" });
+  }
+});
+
 // === START ===
 app.listen(port, () => {
   console.log(`✅ Egorych backend запущен на порту ${port}`);
