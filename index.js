@@ -94,48 +94,6 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// === DECREASE LIMIT ===
-app.post("/decrease", async (req, res) => {
-  const { email } = req.body;
-  console.log(`🧮 Пытаемся уменьшить лимит для: ${email}`);
-
-  if (!email) {
-    return res.status(400).json({ error: "Email обязателен" });
-  }
-
-  try {
-    const { data: user, error } = await supabase
-      .from("users")
-      .select("message_count")
-      .eq("email", email)
-      .single();
-
-    if (error || !user) {
-      console.error("❌ Пользователь не найден в decrease:", error);
-      return res.status(404).json({ error: "Пользователь не найден" });
-    }
-
-    const updatedCount = Math.max(0, user.message_count - 1);
-
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({ message_count: updatedCount })
-      .eq("email", email);
-
-    if (updateError) {
-      console.error("❌ Ошибка при обновлении лимита:", updateError);
-      return res.status(500).json({ error: "Не удалось обновить лимит" });
-    }
-
-    console.log(`✅ Лимит уменьшен: ${user.message_count} → ${updatedCount}`);
-    res.json({ message: "Лимит уменьшен", message_count: updatedCount });
-
-  } catch (e) {
-    console.error("❌ Ошибка decrease:", e);
-    res.status(500).json({ error: "Ошибка уменьшения лимита" });
-  }
-});
-
 // === UPGRADE ===
 app.post("/upgrade", async (req, res) => {
   const { email, plan } = req.body;
@@ -352,16 +310,15 @@ app.post("/webhook", async (req, res) => {
     let messageCount = 50;
     let subscriptionExpires = null;
 
-    // 🔄 Новая логика: 100₽ — beer, 200₽ — whisky, 300₽ — upgrade
-    if (Amount === 100) {
-      plan = "beer";
-      messageCount = 500;
-    } else if (Amount === 200) {
+    if (Amount >= 200) {
       plan = "whisky";
       messageCount = 99999;
-    } else if (Amount === 300) {
-      plan = "upgrade"; // Пока как whisky
+    } else if (Amount >= 300) {
+      plan = "whisky";
       messageCount = 99999;
+    } else if (Amount > 100) {
+      plan = "beer";
+      messageCount = 500;
     }
 
     if (plan !== "user") {
@@ -371,30 +328,16 @@ app.post("/webhook", async (req, res) => {
 
     try {
       if (OrderId) {
-        console.log("🛠 Обновляем Supabase:", {
-          email: OrderId,
-          plan,
-          messageCount,
-          subscriptionExpires,
-          order_id: OrderId // 👈 теперь пишем OrderId в колонку
-        });
-
-        const { data, error } = await supabase
+        await supabase
           .from("users")
           .update({
             plan,
             message_count: messageCount,
-            subscription_expires: subscriptionExpires ? subscriptionExpires.toISOString() : null,
-            order_id: OrderId // 💾 теперь сохраняем OrderId
+            subscription_expires: subscriptionExpires ? subscriptionExpires.toISOString() : null
           })
-          .eq("email", OrderId); // ← email передаётся как OrderId
+          .eq("email", OrderId);
 
-        if (error) {
-          console.error("❌ Ошибка от Supabase:", error);
-        } else {
-          console.log(`✅ Подписка обновлена для ${OrderId} — план: ${plan}`);
-          console.log("📦 Ответ от Supabase:", data);
-        }
+        console.log(`✅ Подписка обновлена для ${OrderId} — план: ${plan}`);
       } else {
         console.warn("⚠️ Webhook без OrderId, обновление не выполнено");
       }
@@ -408,16 +351,10 @@ app.post("/webhook", async (req, res) => {
 
 // === TINKOFF PAYMENT ===
 app.post("/api/create-payment", async (req, res) => {
-  const { amount, email } = req.body;
-
-  if (!email) {
-    console.error("❌ Email не передан в теле запроса");
-    return res.status(400).json({ error: "Email обязателен" });
-  }
-
+  const { amount } = req.body;
   const TERMINAL_KEY = process.env.TINKOFF_TERMINAL_KEY;
   const PASSWORD = process.env.TINKOFF_TERMINAL_PASSWORD;
-  const ORDER_ID = email; // ✅ используем email как OrderId
+  const ORDER_ID = req.headers["x-user-email"] || Date.now().toString(); // email, если есть
   const DESCRIPTION = "Оплата Egorych";
   const SUCCESS_URL = process.env.TINKOFF_SUCCESS_URL;
   const FAIL_URL = process.env.TINKOFF_FAIL_URL;
@@ -448,55 +385,6 @@ app.post("/api/create-payment", async (req, res) => {
   } catch (error) {
     console.error("❌ [TINKOFF] Ошибка:", error.response?.data || error);
     res.status(500).json({ error: "Ошибка создания платежа" });
-  }
-});
-
-// === USER INFO ===
-app.get("/user-info", async (req, res) => {
-  const { email } = req.query;
-
-  if (!email) {
-    return res.status(400).json({ error: "Email обязателен" });
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from("users")
-      .select("plan, message_count")
-      .eq("email", email)
-      .single();
-
-    if (error || !data) {
-      return res.status(404).json({ error: "Пользователь не найден" });
-    }
-
-    res.json(data);
-  } catch (e) {
-    console.error("❌ Ошибка в /user-info:", e);
-    res.status(500).json({ error: "Ошибка на сервере" });
-  }
-});
-
-// === SESSION (для получения email по access_token) ===
-app.get("/session", async (req, res) => {
-  try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.split(" ")[1];
-
-    if (!token) {
-      return res.status(401).json({ error: "Нет токена" });
-    }
-
-    const { data, error } = await supabase.auth.getUser(token);
-
-    if (error || !data?.user) {
-      return res.status(401).json({ error: "Неавторизован" });
-    }
-
-    res.json({ email: data.user.email });
-  } catch (e) {
-    console.error("❌ Ошибка в /session:", e);
-    res.status(500).json({ error: "Ошибка при получении сессии" });
   }
 });
 
